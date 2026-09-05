@@ -3,7 +3,11 @@ const GITHUB_REPO = 'VEYVO';
 const PLAN_START = new Date(2026, 8, 7);
 const defaultState = { theme: 'dark', language: 'cs', loggedRuns: 0, week: 1, planStart: '2026-09-07' };
 let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || {...defaultState};
-if (!state.planStart) { state = { ...state, week: 1, planStart: defaultState.planStart }; localStorage.setItem('veyvo-state', JSON.stringify(state)); }
+if (!state.planStart) { state = { ...state, week: 1, planStart: defaultState.planStart }; }
+state.runHistory ||= [];
+state.weekPlans ||= {};
+state.weekReviews ||= {};
+localStorage.setItem('veyvo-state', JSON.stringify(state));
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
@@ -37,7 +41,7 @@ $('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');i
 $$('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));
 $('#themeToggle').addEventListener('click',()=>{state.theme=state.theme==='dark'?'light':'dark';save();applyTheme()});
 
-const workouts = [
+const baseWorkouts = [
   ['PO','Regenerace','Volno nebo 20 min chůze','—'],
   ['ÚT','Lehký běh','7 km · 5:30–5:55/km','7,0 km'],
   ['ST','Tempo','3 × 1 km · 4:15–4:20/km','8,2 km'],
@@ -46,11 +50,51 @@ const workouts = [
   ['SO','Volno','Volitelná lehká mobilita','—'],
   ['NE','Dlouhý běh','9,6 km · lehké tempo','9,6 km']
 ];
+function getWeekPlan(week){ return state.weekPlans[String(week)] || baseWorkouts; }
+function formatKm(value){ return `${Math.round(value*10)/10}`.replace('.',','); }
+function runsForWeek(week){ return state.runHistory.filter(run=>run.week===week); }
+function generateNextWeekPlan(currentWeek){
+  if(currentWeek<1||currentWeek>=10||state.weekPlans[String(currentWeek+1)])return false;
+  const runs=runsForWeek(currentWeek), avgEffort=runs.length?runs.reduce((sum,run)=>sum+run.effort,0)/runs.length:7;
+  const completion=Math.min(1,runs.length/4); let factor=1, decision='udržení zátěže';
+  if(avgEffort>=8||runs.some(run=>/bolest|pain|zran/i.test(run.note||''))){factor=.9;decision='odlehčení kvůli vysoké náročnosti nebo bolesti'}
+  else if(avgEffort<=6&&completion>=.75){factor=1.05;decision='bezpečné zvýšení zátěže o 5 %'}
+  else if(completion<.75){factor=.92;decision='snížení zátěže kvůli neúplnému týdnu'}
+  const easy=7*factor,long=9.6*factor,intervals=factor<1?5:(factor>1?7:6),tempo=factor<1?2:3;
+  state.weekPlans[String(currentWeek+1)]=[
+    ['PO','Regenerace','Volno nebo 20 min chůze','—'],
+    ['ÚT','Lehký běh',`${formatKm(easy)} km · 5:30–5:55/km`,`${formatKm(easy)} km`],
+    ['ST','Tempo',`${tempo} × 1 km · 4:15–4:20/km`,`${formatKm(5.2+tempo)} km`],
+    ['ČT','Regenerace','Mobilita · 15 minut','—'],
+    ['PÁ','Intervaly',`${intervals} × 400 m · 3:55–4:05/km`,`${formatKm(4+intervals*.4)} km`],
+    ['SO','Volno','Volitelná lehká mobilita','—'],
+    ['NE','Dlouhý běh',`${formatKm(long)} km · lehké tempo`,`${formatKm(long)} km`]
+  ];
+  state.weekReviews[String(currentWeek)]={createdAt:new Date().toISOString(),nextWeek:currentWeek+1,avgEffort:Math.round(avgEffort*10)/10,completion:Math.round(completion*100),decision};
+  save(); return true;
+}
+function renderWeeklyReview(){
+  const {currentWeek}=planPosition();
+  const latestKey=Object.keys(state.weekReviews).map(Number).filter(week=>week<=Math.max(currentWeek,1)).sort((a,b)=>b-a)[0];
+  const latest=latestKey?state.weekReviews[String(latestKey)]:null;
+  if(latest){$('#weeklyReviewTitle').textContent=`Plán pro ${latest.nextWeek}. týden je připravený`;$('#weeklyReviewText').textContent=`Rozhodnutí: ${latest.decision}. Splnění ${latest.completion} %, průměrná náročnost ${latest.avgEffort}/10.`;$('#weeklyReviewState').textContent='HOTOVO';return}
+  if(currentWeek===0){$('#weeklyReviewTitle').textContent='První týden začne 7. 9. 2026';$('#weeklyReviewText').textContent='První AI vyhodnocení proběhne v neděli 13. 9. po posledním běhu.';$('#weeklyReviewState').textContent='ČEKÁ';return}
+  $('#weeklyReviewTitle').textContent='Další plán vznikne po posledním nedělním běhu';$('#weeklyReviewText').textContent='VEYVO vyhodnotí splnění, náročnost, objem a poznámky za celý týden.';$('#weeklyReviewState').textContent='ČEKÁ';
+}
+function checkSundayPlanning(){
+  const now=new Date(), {days,currentWeek}=planPosition(); if(days<0)return;
+  const isSundayEvening=now.getDay()===0&&now.getHours()>=18;
+  if(now.getDay()===0&&!isSundayEvening)return;
+  const reviewWeek=now.getDay()===0?currentWeek:currentWeek-1;
+  if(reviewWeek<1||reviewWeek>=10)return;
+  const hasFinalRun=runsForWeek(reviewWeek).some(run=>run.type==='Dlouhý běh'&&new Date(run.date).getDay()===0);
+  if(hasFinalRun&&generateNextWeekPlan(reviewWeek)){renderPlan();renderWeeklyReview();toast(`AI připravila plán pro ${reviewWeek+1}. týden`)}
+}
 function renderPlan(){
   const selectedStart=new Date(PLAN_START); selectedStart.setDate(selectedStart.getDate()+(state.week-1)*7);
   const today=localMidnight();
-  $('#weekStrip').innerHTML=Array.from({length:10},(_,i)=>`<button class="${i+1===state.week?'active':''}" data-week="${i+1}">TÝDEN<b>${i+1}</b></button>`).join('');
-  $('#calendar').innerHTML=workouts.map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();return `<div class="day-row ${isToday?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[1]}</b><span>${w[2]}</span></div><div class="day-load"><span>${isToday?'DNES':''}</span><b>${w[3]}</b></div></div>`}).join('');
+  $('#weekStrip').innerHTML=Array.from({length:10},(_,i)=>`<button class="${i+1===state.week?'active':''} ${state.weekPlans[String(i+1)]?'generated':''}" data-week="${i+1}">TÝDEN<b>${i+1}</b></button>`).join('');
+  $('#calendar').innerHTML=getWeekPlan(state.week).map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();return `<div class="day-row ${isToday?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[1]}</b><span>${w[2]}</span></div><div class="day-load"><span>${isToday?'DNES':''}</span><b>${w[3]}</b></div></div>`}).join('');
   $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`);setTimeout(()=>applyLanguage())}));
 }
 function updatePlanTiming(){
@@ -63,7 +107,12 @@ const dialog=$('#logDialog');
 $('#quickLog').addEventListener('click',()=>dialog.showModal());
 $('#startWorkout').addEventListener('click',()=>{dialog.showModal();toast('Trénink připraven k záznamu')});
 $('#effort').addEventListener('input',e=>$('#effortOutput').value=`${e.target.value} / 10`);
-$('#saveLog').addEventListener('click',e=>{e.preventDefault();state.loggedRuns++;save();dialog.close();const effort=+$('#effort').value;toast(effort>=8?'Běh uložen · další zátěž bude snížena':'Běh uložen · plán byl přepočítán')});
+$('#saveLog').addEventListener('click',e=>{
+  e.preventDefault(); const {currentWeek}=planPosition(), effort=+$('#effort').value;
+  state.loggedRuns++; state.runHistory.push({id:Date.now(),date:new Date().toISOString(),week:currentWeek,type:$('#logType').value,distance:+$('#logDistance').value||0,time:$('#logTime').value,effort,note:$('#logNote').value.trim()});
+  save(); dialog.close(); checkSundayPlanning(); renderWeeklyReview();
+  toast(effort>=8?'Běh uložen · AI zohlední vyšší náročnost':'Běh uložen pro nedělní AI vyhodnocení');
+});
 $('#adaptPlan').addEventListener('click',()=>{go('coach');setTimeout(()=>sendCoachMessage('Chci upravit plán podle toho, jak se dnes cítím.'),200)});
 
 const replies = [
@@ -80,10 +129,11 @@ function sendCoachMessage(text){
 function escapeHtml(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML}
 $('#chatForm').addEventListener('submit',e=>{e.preventDefault();sendCoachMessage($('#chatInput').value);$('#chatInput').value=''});
 $$('.suggestions button').forEach(b=>b.addEventListener('click',()=>sendCoachMessage(b.textContent)));
-$('#resetDemo').addEventListener('click',()=>{state={...defaultState};save();applyTheme();updatePlanTiming();renderPlan();go('home');toast('Ukázková data obnovena')});
+$('#resetDemo').addEventListener('click',()=>{state={...defaultState};save();applyTheme();updatePlanTiming();renderPlan();renderWeeklyReview();checkSundayPlanning();go('home');toast('Ukázková data obnovena')});
 
-applyTheme();updatePlanTiming();renderPlan();
+applyTheme();updatePlanTiming();renderPlan();renderWeeklyReview();checkSundayPlanning();
 window.veyvo?.version().then(v=>console.info(`VEYVO ${v}`));
+setInterval(checkSundayPlanning, 15*60*1000);
 
 const stravaDialog = $('#stravaDialog');
 function renderStravaState() {
@@ -177,4 +227,3 @@ $$('[data-settings-view]').forEach(tab => tab.addEventListener('click', () => {
   $$('[data-settings-panel]').forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== tab.dataset.settingsView; });
 }));
 $('#settingsOpenStrava').addEventListener('click', () => { settingsDialog.close(); go('connections'); });
-

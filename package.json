@@ -1,6 +1,6 @@
 {
   "name": "veyvo",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "VEYVO — Your adaptive running coach",
   "main": "electron/main.js",
   "author": "VEYVO",
