@@ -156,3 +156,11 @@ $('#appLanguage').addEventListener('change', event => { state.language=event.tar
 applyLanguage();
 
 
+
+// Functional settings tabs
+$$('[data-settings-view]').forEach(tab => tab.addEventListener('click', () => {
+  $$('[data-settings-view]').forEach(item => item.classList.toggle('active', item === tab));
+  $$('[data-settings-panel]').forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== tab.dataset.settingsView; });
+}));
+$('#settingsOpenStrava').addEventListener('click', () => { settingsDialog.close(); go('connections'); });
+
