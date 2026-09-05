@@ -1,0 +1,57 @@
+{
+  "name": "veyvo",
+  "version": "0.1.4",
+  "description": "VEYVO — Your adaptive running coach",
+  "main": "electron/main.js",
+  "author": "VEYVO",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder --win nsis portable",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12",
+    "png-to-ico": "^3.0.2"
+  },
+  "build": {
+    "appId": "com.veyvo.coach",
+    "productName": "VEYVO",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/veyvo.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "VEYVO-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "VEYVO"
+    }
+  }
+}

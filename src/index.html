@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self'">
+  <title>VEYVO</title>
+  <link rel="icon" href="../assets/veyvo-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark"><img src="../assets/veyvo-icon.png" alt="VEYVO"></div><div><strong>VEYVO</strong><span>ADAPTIVE RUNNING</span></div></div>
+      <nav id="nav">
+        <button class="nav-item active" data-page="home"><span>⌁</span>Přehled</button>
+        <button class="nav-item" data-page="plan"><span>◫</span>Můj plán</button>
+        <button class="nav-item" data-page="coach"><span>✦</span>VEYVO Coach</button>
+        <button class="nav-item" data-page="progress"><span>⌁</span>Výkonnost</button>
+        <button class="nav-item" data-page="connections"><span>↗</span>Propojení</button>
+      </nav>
+      <div class="side-card">
+        <div class="pulse-dot"></div><small>ADAPTIVE ENGINE</small>
+        <strong>Plán je aktuální</strong>
+        <p>Upraven podle posledních 3 běhů.</p>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv"><span id="themeIcon">☾</span><span id="themeText">Tmavý režim</span></button>
+        <button class="profile" id="profileMenuButton" aria-haspopup="menu" aria-expanded="false"><span class="avatar">PJ</span><span><b>Pepa</b><small>5K · sub 20:00</small></span></button>
+        <div class="profile-menu" id="profileMenu" role="menu" hidden>
+          <button role="menuitem" id="menuLight"><span>☀</span><span>Světlý režim<small>Jasné prostředí</small></span><i class="menu-check">✓</i></button>
+          <button role="menuitem" id="menuDark"><span>☾</span><span>Tmavý režim<small>Šetrnější večer</small></span><i class="menu-check">✓</i></button>
+          <div class="menu-separator"></div>
+          <button role="menuitem" id="openSettings"><span>⚙</span><span>Nastavení<small>Účet, aktualizace a data</small></span><i>›</i></button>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar"><div><span class="eyebrow" id="pageEyebrow">PÁTEK · 4. ZÁŘÍ</span><h1 id="pageTitle">Dobrý večer, Pepo.</h1></div><div class="top-actions"><button class="icon-btn" id="resetDemo" title="Obnovit demo data">↻</button><button class="primary small" id="quickLog">＋ Zapsat běh</button></div></header>
+
+      <section class="page active" id="homePage">
+        <div class="readiness hero-card">
+          <div class="readiness-copy"><span class="chip green">PŘIPRAVENOST 84</span><h2>Dnes můžeš<br><em>běžet svižně.</em></h2><p>Spánek i regenerace jsou v normě. Tvůj plán počítá s intervalovou jednotkou.</p><div class="metric-row"><div><span>SPÁNEK</span><b>7 h 42</b></div><div><span>ÚNAVA</span><b>Nízká</b></div><div><span>ZÁTĚŽ</span><b>Optimální</b></div></div></div>
+          <div class="orb-wrap"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="score-orb"><span>84</span><small>READY</small></div></div>
+        </div>
+
+        <div class="section-heading"><div><span class="eyebrow">DNEŠNÍ MISE</span><h2>Rychlost bez chaosu.</h2></div><span class="date-pill">Pá · Týden 4/10</span></div>
+        <article class="workout-card">
+          <div class="workout-index">04</div><div class="workout-main"><div class="tag-row"><span class="chip violet">INTERVALY</span><span>≈ 48 minut</span></div><h3>6 × 400 m <span>@ 3:55–4:05/km</span></h3><div class="workout-flow"><span>10 min <small>ROZKLUS</small></span><i>→</i><span>6 × 400 m <small>RYCHLE</small></span><i>→</i><span>90 s <small>MEZIKLUS</small></span><i>→</i><span>10 min <small>VÝKLUS</small></span></div></div><button class="start-btn" id="startWorkout"><span>▶</span> Spustit</button>
+        </article>
+
+        <div class="grid-two">
+          <article class="panel prediction"><div class="panel-head"><div><span class="eyebrow">PREDIKCE 5 KM</span><h3>20:47</h3></div><span class="trend">↘ 37 s</span></div><div class="goal-line"><div class="goal-fill"></div><span class="current-dot"></span><span class="target-dot"></span></div><div class="goal-labels"><span>START<br><b>22:18</b></span><span>DNES<br><b>20:47</b></span><span>CÍL<br><b>19:59</b></span></div></article>
+          <article class="panel insight"><div class="coach-badge"><img src="../assets/veyvo-icon.png" alt="VEYVO Coach"></div><div><span class="eyebrow">COACH INSIGHT</span><p>Intervaly minulý týden byly konzistentní. Dnes drž první dvě opakování kontrolovaně a zrychli až v závěru.</p><button class="text-btn" data-goto="coach">Probrat s coachem →</button></div></article>
+        </div>
+      </section>
+
+      <section class="page" id="planPage">
+        <div class="page-intro"><div><span class="chip violet">CÍL · 5 KM POD 20:00</span><h2>Plán, který se hýbe s tebou.</h2><p>10 týdnů · 4 běhy týdně · právě jsi ve 4. týdnu</p></div><button class="primary" id="adaptPlan">✦ Upravit podle pocitu</button></div>
+        <div class="week-strip" id="weekStrip"></div>
+        <div class="plan-layout"><div class="calendar" id="calendar"></div><aside class="week-summary panel"><span class="eyebrow">TÝDENNÍ ZÁTĚŽ</span><div class="load-ring"><b>72</b><small>OPTIMÁLNÍ</small></div><div class="summary-stat"><span>Objem</span><b>31,2 km</b></div><div class="summary-stat"><span>Kvalitní tréninky</span><b>2</b></div><div class="summary-stat"><span>Regenerační dny</span><b>3</b></div><p class="safe-note">◇ Bezpečnostní engine drží růst objemu pod 8 %.</p></aside></div>
+      </section>
+
+      <section class="page" id="coachPage">
+        <div class="coach-layout">
+          <div class="coach-hero"><span class="chip green">VEYVO INTELLIGENCE</span><h2>Ne plán z tabulky.<br><em>Rozhovor s trenérem.</em></h2><p>Coach zná tvůj cíl, historii, plán i regeneraci. Doporučení vždy prochází bezpečnostními pravidly.</p><div class="suggestions"><button>Spal jsem jen 5 hodin</button><button>Bolí mě lýtka</button><button>Přesuň dlouhý běh</button></div></div>
+          <div class="chat-panel"><div class="chat-head"><div class="coach-badge"><img src="../assets/veyvo-icon.png" alt="VEYVO Coach"></div><div><b>VEYVO Coach</b><span><i></i> Připraven</span></div></div><div class="messages" id="messages"><div class="message coach"><span><img src="../assets/veyvo-icon.png" alt="VEYVO"></span><p>Ahoj, Pepo. Dnešní intervaly odpovídají tvé připravenosti. Jak se cítíš?</p></div></div><form class="chat-input" id="chatForm"><input id="chatInput" placeholder="Napiš, jak se dnes cítíš…" autocomplete="off"><button>↑</button></form><small class="disclaimer">VEYVO nenahrazuje lékařskou péči. Při bolesti trénink přeruší.</small></div>
+        </div>
+      </section>
+
+      <section class="page" id="progressPage">
+        <div class="page-intro"><div><span class="chip green">TREND · ZLEPŠENÍ</span><h2>Každý běh zanechá stopu.</h2><p>Od začátku plánu ses v predikci zlepšil o 1:31.</p></div><select id="rangeSelect"><option>Posledních 8 týdnů</option><option>Celý plán</option></select></div>
+        <div class="stats-grid"><div class="stat-card"><span>TÝDENNÍ OBJEM</span><b>31,2 <small>km</small></b><i>+6,1 %</i></div><div class="stat-card"><span>ODHAD VO₂MAX</span><b>52 <small>ml/kg</small></b><i>+2</i></div><div class="stat-card"><span>KONZISTENCE</span><b>91 <small>%</small></b><i>10/11 běhů</i></div><div class="stat-card"><span>NEJLEPŠÍ 1 KM</span><b>3:48</b><i>osobní rekord</i></div></div>
+        <article class="panel chart-panel"><div class="panel-head"><div><span class="eyebrow">VÝVOJ PREDIKCE</span><h3>Cesta k 19:59</h3></div><div class="legend"><i></i> Predikovaný čas <i></i> Cíl</div></div><div class="chart"><div class="target-line"><span>19:59 CÍL</span></div><svg viewBox="0 0 900 260" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cff57" stop-opacity=".32"/><stop offset="1" stop-color="#9cff57" stop-opacity="0"/></linearGradient></defs><path class="area" d="M0 35 C110 46 120 82 230 91 S380 118 460 135 S610 161 690 190 S800 204 900 225 L900 260 L0 260Z"/><path class="line" d="M0 35 C110 46 120 82 230 91 S380 118 460 135 S610 161 690 190 S800 204 900 225"/><g class="points"><circle cx="0" cy="35" r="5"/><circle cx="230" cy="91" r="5"/><circle cx="460" cy="135" r="5"/><circle cx="690" cy="190" r="5"/><circle cx="900" cy="225" r="7"/></g></svg><div class="xlabels"><span>TÝDEN 1</span><span>TÝDEN 2</span><span>TÝDEN 4</span><span>TÝDEN 6</span><span>TÝDEN 8</span></div></div></article>
+      </section>
+
+      <section class="page" id="connectionsPage">
+        <div class="page-intro"><div><span class="chip orange">DATOVÁ PROPOJENÍ</span><h2>Tvoje běhy. Automaticky.</h2><p>Propoj sportovní služby a nech VEYVO upravovat plán podle skutečných aktivit.</p></div></div>
+        <div class="connection-grid">
+          <article class="connection-card strava-card">
+            <div class="connection-brand"><div class="strava-mark">▲</div><div><span class="eyebrow">SPORTOVNÍ SLUŽBA</span><h3>Strava</h3></div><span class="connection-status" id="stravaStatus">NEPŘIPOJENO</span></div>
+            <p>Automaticky importuje dokončené běhy, tempo, vzdálenost, čas, tep, splity a převýšení. VEYVO podle nich bezpečně upraví další tréninky.</p>
+            <div class="permission-list"><div><span>↙</span><b>Import aktivit</b><small>Nové běhy a jejich podrobnosti</small></div><div><span>⌁</span><b>Analýza výkonu</b><small>Tempo, tep, splity a zátěž</small></div><div><span>✦</span><b>Adaptace plánu</b><small>Úpravy až po kontrole pravidel</small></div></div>
+            <button class="strava-button" id="connectStrava"><span>▲</span> Připojit přes Stravu</button>
+            <button class="disconnect-button" id="disconnectStrava" hidden>Odpojit účet</button>
+            <small class="privacy-note">Přihlášení probíhá přímo u Stravy. VEYVO nikdy nevidí ani neukládá tvoje heslo.</small>
+          </article>
+          <aside class="panel sync-panel"><span class="eyebrow">SYNCHRONIZACE</span><h3>Co se bude dít?</h3><div class="sync-step"><b>01</b><p><strong>Přihlásíš se u Stravy</strong><span>Ty rozhodneš, která oprávnění VEYVO získá.</span></p></div><div class="sync-step"><b>02</b><p><strong>Běhy se načtou</strong><span>Nové aktivity se při spuštění bezpečně synchronizují.</span></p></div><div class="sync-step"><b>03</b><p><strong>Plán zareaguje</strong><span>Coach zohlední výkon, únavu a dlouhodobý trend.</span></p></div><div class="safe-note">◇ Automatická úprava nikdy nepřekročí bezpečnostní limity.</div></aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="logDialog"><form method="dialog" id="logForm"><div class="modal-head"><div><span class="eyebrow">ZÁZNAM TRÉNINKU</span><h2>Jak se běželo?</h2></div><button value="cancel" class="close">×</button></div><label>Typ tréninku<select id="logType"><option>Intervaly</option><option>Lehký běh</option><option>Tempo</option><option>Dlouhý běh</option></select></label><div class="form-grid"><label>Vzdálenost<input id="logDistance" type="number" min="0" step="0.1" value="6.4"><small>kilometrů</small></label><label>Čas<input id="logTime" value="34:12"><small>mm:ss</small></label></div><label>Pocitová náročnost <output id="effortOutput">6 / 10</output><input id="effort" type="range" min="1" max="10" value="6"></label><label>Poznámka<textarea id="logNote" placeholder="Jak ses cítil? Bolest, únava, počasí…"></textarea></label><button class="primary full" value="default" id="saveLog">Uložit a adaptovat plán</button></form></dialog>
+
+  <dialog id="stravaDialog"><form method="dialog" id="stravaForm"><div class="modal-head"><div><span class="eyebrow">STRAVA OAUTH</span><h2>Propojit účet</h2></div><button value="cancel" class="close">×</button></div><div class="oauth-visual"><span>V</span><i>↔</i><span>▲</span></div><p class="modal-copy">Produkční připojení používá zabezpečené přihlášení Stravy. Pro tuto lokální verzi zadej Client ID své Strava API aplikace.</p><label>Strava Client ID<input id="stravaClientId" inputmode="numeric" placeholder="např. 123456"></label><label class="consent"><input type="checkbox" id="stravaConsent"> Povoluji načítání vlastních aktivit ze Stravy.</label><button class="strava-button full" value="default" id="authorizeStrava">Pokračovat na Stravu</button><small class="privacy-note">Client secret se do desktopové aplikace nevkládá. Dokončení synchronizace vyžaduje bezpečný backend VEYVO.</small></form></dialog>
+
+  <dialog id="settingsDialog" class="settings-dialog"><form method="dialog" id="settingsForm"><div class="modal-head"><div><span class="eyebrow">VEYVO</span><h2>Nastavení</h2></div><button value="cancel" class="close">×</button></div>
+    <div class="settings-tabs"><button type="button" class="active">Obecné</button><button type="button">Propojení</button></div>
+    <section class="settings-section"><div class="settings-section-head"><div class="github-mark">GH</div><div><h3>Aktualizace přes GitHub</h3><p>VEYVO kontroluje nejnovější vydání v GitHub Releases.</p></div><span class="connection-status" id="githubStatus">NEKONFIGUROVÁNO</span></div>
+      <div class="repo-grid"><label>Vlastník repozitáře<input id="githubOwner" placeholder="např. pepik"></label><label>Název repozitáře<input id="githubRepo" placeholder="např. VEYVO"></label></div>
+      <label class="settings-switch"><span><b>Kontrolovat aktualizace při spuštění</b><small>Pošle pouze dotaz na veřejné GitHub Releases.</small></span><input type="checkbox" id="autoCheckUpdates" checked><i></i></label>
+      <div class="update-actions"><button type="button" class="primary" id="saveGithub">Uložit propojení</button><button type="button" class="secondary-button" id="checkUpdates">Zkontrolovat aktualizace</button></div>
+      <div class="update-result" id="updateResult" hidden></div>
+    </section>
+    <section class="settings-section compact"><span class="eyebrow">VZHLED</span><div class="appearance-options"><button type="button" data-set-theme="light">☀ Světlý</button><button type="button" data-set-theme="dark">☾ Tmavý</button></div></section>
+    <small class="privacy-note">Soukromý repozitář by vyžadoval bezpečné přihlášení. Přístupový token se do této desktopové aplikace neukládá.</small>
+  </form></dialog>
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+
