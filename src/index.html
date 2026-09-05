@@ -99,21 +99,12 @@
 
   <dialog id="settingsDialog" class="settings-dialog"><form method="dialog" id="settingsForm"><div class="modal-head"><div><span class="eyebrow">VEYVO</span><h2>Nastavení</h2></div><button value="cancel" class="close">×</button></div>
     <div class="settings-tabs"><button type="button" class="active">Obecné</button><button type="button">Propojení</button></div>
-    <section class="settings-section"><div class="settings-section-head"><div class="github-mark">GH</div><div><h3>Aktualizace přes GitHub</h3><p>VEYVO kontroluje nejnovější vydání v GitHub Releases.</p></div><span class="connection-status" id="githubStatus">NEKONFIGUROVÁNO</span></div>
-      <div class="repo-grid"><label>Vlastník repozitáře<input id="githubOwner" placeholder="např. pepik"></label><label>Název repozitáře<input id="githubRepo" placeholder="např. VEYVO"></label></div>
-      <label class="settings-switch"><span><b>Kontrolovat aktualizace při spuštění</b><small>Pošle pouze dotaz na veřejné GitHub Releases.</small></span><input type="checkbox" id="autoCheckUpdates" checked><i></i></label>
-      <div class="update-actions"><button type="button" class="primary" id="saveGithub">Uložit propojení</button><button type="button" class="secondary-button" id="checkUpdates">Zkontrolovat aktualizace</button></div>
-      <div class="update-result" id="updateResult" hidden></div>
-    </section>
+    <section class="settings-section language-section"><div class="settings-section-head"><div class="language-mark">文</div><div><h3>Jazyk aplikace</h3><p>Změna se projeví okamžitě a zůstane uložená.</p></div></div><label class="language-select-label">Jazyk<select id="appLanguage"><option value="cs">Čeština</option><option value="en">English</option></select></label></section>
+    <section class="settings-section update-simple"><div class="settings-section-head"><div class="github-mark">GH</div><div><h3>Aktualizace</h3><p>Zdroj: PepiBikerBTW/VEYVO · GitHub Releases</p></div></div><button type="button" class="primary update-only-button" id="checkUpdates">Zkontrolovat aktualizace</button><div class="update-result" id="updateResult" hidden></div></section>
     <section class="settings-section compact"><span class="eyebrow">VZHLED</span><div class="appearance-options"><button type="button" data-set-theme="light">☀ Světlý</button><button type="button" data-set-theme="dark">☾ Tmavý</button></div></section>
-    <small class="privacy-note">Soukromý repozitář by vyžadoval bezpečné přihlášení. Přístupový token se do této desktopové aplikace neukládá.</small>
+
   </form></dialog>
   <div class="toast" id="toast"></div>
   <script src="app.js"></script>
 </body>
 </html>
-
-
-
-
-

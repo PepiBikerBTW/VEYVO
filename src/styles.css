@@ -11,3 +11,6 @@
 
 /* VEYVO application icon */
 .brand-mark{background:transparent;overflow:hidden;transform:none}.brand-mark img,.coach-badge img,.message span img{width:100%;height:100%;display:block;object-fit:cover}.coach-badge{overflow:hidden;background:transparent}.message span:has(img){padding:0;overflow:hidden;background:transparent}.message span img{border-radius:9px}
+
+/* Simplified updates and language */
+.language-mark{width:42px;height:42px;border-radius:13px;background:var(--violet);color:white;display:grid;place-items:center;font-size:17px;font-weight:900}.language-select-label{margin-top:18px!important}.language-select-label select{display:block;width:100%;margin-top:7px;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);font:inherit}.update-only-button{margin-top:18px}.update-simple .update-result{margin-bottom:0}

@@ -1,6 +1,6 @@
 const GITHUB_OWNER = 'PepiBikerBTW';
 const GITHUB_REPO = 'VEYVO';
-const defaultState = { theme: 'dark', loggedRuns: 0, week: 4, githubOwner: GITHUB_OWNER, githubRepo: GITHUB_REPO, autoCheckUpdates: true };
+const defaultState = { theme: 'dark', language: 'cs', loggedRuns: 0, week: 4 };
 let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || defaultState;
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -104,14 +104,9 @@ function renderProfilePreferences() {
   $('#menuLight').classList.toggle('selected', state.theme === 'light');
   $('#menuDark').classList.toggle('selected', state.theme === 'dark');
   $$('[data-set-theme]').forEach(button => button.classList.toggle('active', button.dataset.setTheme === state.theme));
-  $('#githubOwner').value = state.githubOwner || GITHUB_OWNER;
-  $('#githubRepo').value = state.githubRepo || GITHUB_REPO;
-  $('#autoCheckUpdates').checked = state.autoCheckUpdates !== false;
-  const configured = Boolean((state.githubOwner || GITHUB_OWNER) && (state.githubRepo || GITHUB_REPO));
-  $('#githubStatus').textContent = configured ? 'PROPOJENO' : 'NEKONFIGUROVÁNO';
-  $('#githubStatus').classList.toggle('connected', configured);
+  if ($('#appLanguage')) $('#appLanguage').value = state.language || 'cs';
 }
-function setTheme(theme) { state.theme = theme; save(); applyTheme(); renderProfilePreferences(); }
+function setTheme(theme) { state.theme = theme; save(); applyTheme(); renderProfilePreferences(); applyLanguage(); }
 $('#profileMenuButton').addEventListener('click', event => {
   event.stopPropagation(); const opening = profileMenu.hidden; profileMenu.hidden = !opening;
   $('#profileMenuButton').setAttribute('aria-expanded', String(opening)); renderProfilePreferences();
@@ -121,29 +116,43 @@ $('#menuLight').addEventListener('click', () => { setTheme('light'); profileMenu
 $('#menuDark').addEventListener('click', () => { setTheme('dark'); profileMenu.hidden = true; });
 $('#openSettings').addEventListener('click', () => { profileMenu.hidden = true; renderProfilePreferences(); settingsDialog.showModal(); });
 $$('[data-set-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.setTheme)));
-$('#saveGithub').addEventListener('click', () => {
-  const owner = $('#githubOwner').value.trim(), repo = $('#githubRepo').value.trim();
-  if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo)) return toast('Zadej platného vlastníka a název repozitáře');
-  state.githubOwner = owner; state.githubRepo = repo; state.autoCheckUpdates = $('#autoCheckUpdates').checked; save(); renderProfilePreferences();
-  toast('GitHub Releases byly propojeny'); checkForUpdates(true);
-});
-$('#checkUpdates').addEventListener('click', () => checkForUpdates(true));
+$('#checkUpdates').addEventListener('click', () => checkForUpdates());
 function compareVersions(a, b) {
   const pa=String(a).split('.').map(Number), pb=String(b).split('.').map(Number);
   for(let i=0;i<Math.max(pa.length,pb.length);i++){const d=(pa[i]||0)-(pb[i]||0);if(d)return d} return 0;
 }
-async function checkForUpdates(showResult = false) {
-  const owner = state.githubOwner || $('#githubOwner').value.trim(), repo = state.githubRepo || $('#githubRepo').value.trim();
-  if (!owner || !repo) { if(showResult) toast('Nejdřív nastav GitHub repozitář'); return; }
-  const box=$('#updateResult'); if(showResult){box.hidden=false;box.innerHTML='<strong>Kontroluji GitHub…</strong>Hledám nejnovější veřejné vydání.'}
-  const result=await window.veyvo?.checkGithubRelease(owner,repo);
-  if(!result || result.error){if(showResult){box.hidden=false;box.innerHTML=`<strong>Aktualizaci nelze ověřit</strong>${escapeHtml(result?.error||'Neznámá chyba')}`}return}
+async function checkForUpdates() {
+  const box=$('#updateResult'); box.hidden=false;
+  box.innerHTML=state.language==='en'?'<strong>Checking GitHub…</strong>Looking for the latest public release.':'<strong>Kontroluji GitHub…</strong>Hledám nejnovější veřejné vydání.';
+  const result=await window.veyvo?.checkGithubRelease(GITHUB_OWNER,GITHUB_REPO);
+  if(!result || result.error){box.innerHTML=`<strong>${state.language==='en'?'Update check failed':'Aktualizaci nelze ověřit'}</strong>${escapeHtml(result?.error||'Neznámá chyba')}`;return}
   const newer=compareVersions(result.latestVersion,result.currentVersion)>0;
-  box.hidden=false;
-  box.innerHTML=newer?`<strong>Je dostupná verze ${escapeHtml(result.latestVersion)}</strong>Máš VEYVO ${escapeHtml(result.currentVersion)}.<br><button type="button" class="strava-button" id="downloadUpdate">Otevřít GitHub Release</button>`:`<strong>VEYVO je aktuální</strong>Používáš nejnovější verzi ${escapeHtml(result.currentVersion)}.`;
+  box.innerHTML=newer?`<strong>${state.language==='en'?'Version available':'Je dostupná verze'} ${escapeHtml(result.latestVersion)}</strong>${state.language==='en'?'Installed':'Máš VEYVO'} ${escapeHtml(result.currentVersion)}.<br><button type="button" class="strava-button" id="downloadUpdate">${state.language==='en'?'Open GitHub Release':'Otevřít GitHub Release'}</button>`:`<strong>${state.language==='en'?'VEYVO is up to date':'VEYVO je aktuální'}</strong>${state.language==='en'?'You are using the latest version':'Používáš nejnovější verzi'} ${escapeHtml(result.currentVersion)}.`;
   if(newer)$('#downloadUpdate').addEventListener('click',()=>window.veyvo.openGithubRelease(result.url));
 }
 renderProfilePreferences();
-setTimeout(() => { if (state.autoCheckUpdates !== false && state.githubOwner && state.githubRepo) checkForUpdates(false); }, 1200);
+// Persistent Czech / English interface language
+const textTranslations = {
+  'Přehled':'Overview','Můj plán':'My plan','VEYVO Coach':'VEYVO Coach','Výkonnost':'Performance','Propojení':'Connections',
+  'Plán je aktuální':'Plan is up to date','Upraven podle posledních 3 běhů.':'Adjusted from the last 3 runs.','Tmavý režim':'Dark mode','Světlý režim':'Light mode','Jasné prostředí':'Bright appearance','Šetrnější večer':'Easier on the eyes','Nastavení':'Settings','Účet, aktualizace a data':'Account, updates and data',
+  'Dobrý večer, Pepo.':'Good evening, Pepa.','Zapsat běh':'Log run','PŘIPRAVENOST 84':'READINESS 84','Dnes můžeš':'Today you can','běžet svižně.':'run fast.','Spánek i regenerace jsou v normě. Tvůj plán počítá s intervalovou jednotkou.':'Sleep and recovery look good. Your plan includes an interval session.','SPÁNEK':'SLEEP','ÚNAVA':'FATIGUE','Nízká':'Low','ZÁTĚŽ':'LOAD','Optimální':'Optimal','DNEŠNÍ MISE':'TODAY’S MISSION','Rychlost bez chaosu.':'Speed without chaos.','DNEŠNÍ TRÉNINK':'TODAY’S WORKOUT','Spustit':'Start',
+  'PREDIKCE 5 KM':'5K PREDICTION','COACH INSIGHT':'COACH INSIGHT','Probrat s coachem →':'Ask the coach →','Můj plán':'My plan','Plán, který se hýbe s tebou.':'A plan that moves with you.','Upravit podle pocitu':'Adjust to how I feel','TÝDENNÍ ZÁTĚŽ':'WEEKLY LOAD','Objem':'Volume','Kvalitní tréninky':'Quality sessions','Regenerační dny':'Recovery days',
+  'Na co dnes myslíš?':'What’s on your mind?','Ne plán z tabulky.':'Not a spreadsheet plan.','Rozhovor s trenérem.':'A conversation with a coach.','Spal jsem jen 5 hodin':'I slept only 5 hours','Bolí mě lýtka':'My calves hurt','Přesuň dlouhý běh':'Move the long run','Připraven':'Ready',
+  'Tvoje výkonnost.':'Your performance.','Každý běh zanechá stopu.':'Every run leaves a mark.','TÝDENNÍ OBJEM':'WEEKLY VOLUME','KONZISTENCE':'CONSISTENCY','NEJLEPŠÍ 1 KM':'BEST 1 KM','VÝVOJ PREDIKCE':'PREDICTION TREND','Cesta k 19:59':'Road to 19:59',
+  'Tvoje běhy. Automaticky.':'Your runs. Automatically.','Připojit přes Stravu':'Connect with Strava','Odpojit účet':'Disconnect account','SYNCHRONIZACE':'SYNC','Co se bude dít?':'What happens next?','Přihlásíš se u Stravy':'Sign in with Strava','Běhy se načtou':'Runs are imported','Plán zareaguje':'The plan adapts',
+  'Obecné':'General','Jazyk aplikace':'App language','Změna se projeví okamžitě a zůstane uložená.':'The change is applied immediately and saved.','Jazyk':'Language','Čeština':'Czech','Aktualizace':'Updates','Zkontrolovat aktualizace':'Check for updates','VZHLED':'APPEARANCE','Světlý':'Light','Tmavý':'Dark',
+  'ZÁZNAM TRÉNINKU':'WORKOUT LOG','Jak se běželo?':'How was your run?','Typ tréninku':'Workout type','Lehký běh':'Easy run','Dlouhý běh':'Long run','Vzdálenost':'Distance','kilometrů':'kilometres','Čas':'Time','Pocitová náročnost':'Perceived effort','Poznámka':'Note','Uložit a adaptovat plán':'Save and adapt plan'
+};
+const originalText = new WeakMap();
+function applyLanguage() {
+  const language = state.language || 'cs'; document.documentElement.lang = language;
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let node;
+  while(node=walker.nextNode()) { if(['SCRIPT','STYLE'].includes(node.parentElement?.tagName)) continue; if(!originalText.has(node)) originalText.set(node,node.nodeValue); const source=originalText.get(node); const key=source.trim(); if(!key) continue; const translated=language==='en'?(textTranslations[key]||key):key; node.nodeValue=source.replace(key,translated); }
+  const placeholders={'Napiš, jak se dnes cítíš…':'Tell me how you feel today…','Jak ses cítil? Bolest, únava, počasí…':'How did you feel? Pain, fatigue, weather…'};
+  $$('[placeholder]').forEach(el=>{if(!el.dataset.csPlaceholder)el.dataset.csPlaceholder=el.placeholder;el.placeholder=language==='en'?(placeholders[el.dataset.csPlaceholder]||el.dataset.csPlaceholder):el.dataset.csPlaceholder});
+  $('#appLanguage').value=language;
+}
+$('#appLanguage').addEventListener('change', event => { state.language=event.target.value; save(); applyLanguage(); toast(state.language==='en'?'Language changed to English':'Jazyk změněn na češtinu'); });
+applyLanguage();
 
 
