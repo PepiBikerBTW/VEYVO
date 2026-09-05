@@ -50,6 +50,10 @@ const baseWorkouts = [
   ['SO','Volno','Volitelná lehká mobilita','—'],
   ['NE','Dlouhý běh','9,6 km · lehké tempo','9,6 km']
 ];
+function unlockedWeeks(){
+  return [1,...Object.keys(state.weekPlans).map(Number).filter(week=>week>=2&&week<=10)].sort((a,b)=>a-b);
+}
+function maxUnlockedWeek(){ return Math.max(...unlockedWeeks()); }
 function getWeekPlan(week){ return state.weekPlans[String(week)] || baseWorkouts; }
 function formatKm(value){ return `${Math.round(value*10)/10}`.replace('.',','); }
 function runsForWeek(week){ return state.runHistory.filter(run=>run.week===week); }
@@ -91,9 +95,11 @@ function checkSundayPlanning(){
   if(hasFinalRun&&generateNextWeekPlan(reviewWeek)){renderPlan();renderWeeklyReview();toast(`AI připravila plán pro ${reviewWeek+1}. týden`)}
 }
 function renderPlan(){
+  const availableWeeks=unlockedWeeks();
+  if(!availableWeeks.includes(state.week)){state.week=maxUnlockedWeek();save()}
   const selectedStart=new Date(PLAN_START); selectedStart.setDate(selectedStart.getDate()+(state.week-1)*7);
   const today=localMidnight();
-  $('#weekStrip').innerHTML=Array.from({length:10},(_,i)=>`<button class="${i+1===state.week?'active':''} ${state.weekPlans[String(i+1)]?'generated':''}" data-week="${i+1}">TÝDEN<b>${i+1}</b></button>`).join('');
+  $('#weekStrip').innerHTML=availableWeeks.map(week=>`<button class="${week===state.week?'active':''} ${state.weekPlans[String(week)]?'generated':''}" data-week="${week}">TÝDEN<b>${week}</b></button>`).join('');
   $('#calendar').innerHTML=getWeekPlan(state.week).map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();return `<div class="day-row ${isToday?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[1]}</b><span>${w[2]}</span></div><div class="day-load"><span>${isToday?'DNES':''}</span><b>${w[3]}</b></div></div>`}).join('');
   $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`);setTimeout(()=>applyLanguage())}));
 }
