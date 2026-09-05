@@ -1,6 +1,6 @@
 {
   "name": "veyvo",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "VEYVO — Your adaptive running coach",
   "main": "electron/main.js",
   "author": "VEYVO",
@@ -52,6 +52,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "VEYVO"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "PepiBikerBTW",
+        "repo": "VEYVO"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

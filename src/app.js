@@ -116,21 +116,19 @@ $('#menuLight').addEventListener('click', () => { setTheme('light'); profileMenu
 $('#menuDark').addEventListener('click', () => { setTheme('dark'); profileMenu.hidden = true; });
 $('#openSettings').addEventListener('click', () => { profileMenu.hidden = true; renderProfilePreferences(); settingsDialog.showModal(); });
 $$('[data-set-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.setTheme)));
-$('#checkUpdates').addEventListener('click', () => checkForUpdates());
-function compareVersions(a, b) {
-  const pa=String(a).split('.').map(Number), pb=String(b).split('.').map(Number);
-  for(let i=0;i<Math.max(pa.length,pb.length);i++){const d=(pa[i]||0)-(pb[i]||0);if(d)return d} return 0;
+$('#checkUpdates').addEventListener('click', () => window.veyvo?.checkForUpdates());
+function updateMessage(status) {
+  const en=state.language==='en', box=$('#updateResult'), progress=$('#updateProgress'), bar=$('#updateProgressBar');
+  box.hidden=false;
+  if(status.type==='checking') box.innerHTML=`<strong>${en?'Checking for updates…':'Kontroluji aktualizace…'}</strong>${en?'This only takes a moment.':'Zjišťuji nejnovější verzi.'}`;
+  if(status.type==='available') box.innerHTML=`<strong>${en?'Update found':'Nalezena aktualizace'} ${escapeHtml(status.version||'')}</strong>${en?'Downloading automatically in the background.':'Automaticky ji stahuji na pozadí.'}`;
+  if(status.type==='progress'){progress.hidden=false;bar.style.width=`${Math.max(0,Math.min(100,status.percent||0))}%`;box.innerHTML=`<strong>${en?'Downloading update':'Stahuji aktualizaci'} · ${status.percent||0} %</strong>${en?'VEYVO will restart and install it when ready.':'Po dokončení se VEYVO restartuje a aktualizaci nainstaluje.'}`}
+  if(status.type==='ready'){progress.hidden=false;bar.style.width='100%';box.innerHTML=`<strong>${en?'Update is ready':'Aktualizace je připravena'} ${escapeHtml(status.version||'')}</strong>${en?'VEYVO will restart in 5 seconds and install it.':'VEYVO se za 5 sekund restartuje a samo ji nainstaluje.'}`}
+  if(status.type==='current'){progress.hidden=true;box.innerHTML=`<strong>${en?'VEYVO is up to date':'VEYVO je aktuální'}</strong>${en?'You are using the latest version':'Používáš nejnovější verzi'} ${escapeHtml(status.version||'')}.`}
+  if(status.type==='development'){progress.hidden=true;box.innerHTML=`<strong>${en?'Updater is ready':'Aktualizátor je připravený'}</strong>${en?'Automatic updates run in the installed application.':'Automatické aktualizace fungují v nainstalované aplikaci.'}`}
+  if(status.type==='error'){progress.hidden=true;box.innerHTML=`<strong>${en?'Update failed':'Aktualizace se nezdařila'}</strong>${escapeHtml(status.message||'')}`}
 }
-async function checkForUpdates() {
-  const box=$('#updateResult'); box.hidden=false;
-  box.innerHTML=state.language==='en'?'<strong>Checking GitHub…</strong>Looking for the latest public release.':'<strong>Kontroluji GitHub…</strong>Hledám nejnovější veřejné vydání.';
-  const result=await window.veyvo?.checkGithubRelease(GITHUB_OWNER,GITHUB_REPO);
-  if(!result || result.error){box.innerHTML=`<strong>${state.language==='en'?'Update check failed':'Aktualizaci nelze ověřit'}</strong>${escapeHtml(result?.error||'Neznámá chyba')}`;return}
-  const newer=compareVersions(result.latestVersion,result.currentVersion)>0;
-  box.innerHTML=newer?`<strong>${state.language==='en'?'Version available':'Je dostupná verze'} ${escapeHtml(result.latestVersion)}</strong>${state.language==='en'?'Installed':'Máš VEYVO'} ${escapeHtml(result.currentVersion)}.<br><button type="button" class="strava-button" id="downloadUpdate">${state.language==='en'?'Open GitHub Release':'Otevřít GitHub Release'}</button>`:`<strong>${state.language==='en'?'VEYVO is up to date':'VEYVO je aktuální'}</strong>${state.language==='en'?'You are using the latest version':'Používáš nejnovější verzi'} ${escapeHtml(result.currentVersion)}.`;
-  if(newer)$('#downloadUpdate').addEventListener('click',()=>window.veyvo.openGithubRelease(result.url));
-}
-renderProfilePreferences();
+window.veyvo?.onUpdaterStatus(updateMessage);renderProfilePreferences();
 // Persistent Czech / English interface language
 const textTranslations = {
   'Přehled':'Overview','Můj plán':'My plan','VEYVO Coach':'VEYVO Coach','Výkonnost':'Performance','Propojení':'Connections',
@@ -163,4 +161,3 @@ $$('[data-settings-view]').forEach(tab => tab.addEventListener('click', () => {
   $$('[data-settings-panel]').forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== tab.dataset.settingsView; });
 }));
 $('#settingsOpenStrava').addEventListener('click', () => { settingsDialog.close(); go('connections'); });
-

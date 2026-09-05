@@ -18,3 +18,4 @@
 
 /* Pixel-stable sidebar navigation: prevents green edge artifacts on Windows scaling */
 #nav{position:relative;overflow:hidden;isolation:isolate;padding:0 1px}.nav-item{position:relative;overflow:hidden;box-shadow:none!important;outline-offset:-2px}.nav-item::before{content:none!important}.nav-item.active{box-shadow:none!important;border-left:0!important;background:var(--surface2)}.nav-item.active span{color:var(--lime)}
+.update-progress{height:7px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:16px}.update-progress span{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--violet),var(--lime));border-radius:inherit;transition:width .25s ease}
