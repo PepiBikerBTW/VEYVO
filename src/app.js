@@ -1,7 +1,9 @@
 const GITHUB_OWNER = 'PepiBikerBTW';
 const GITHUB_REPO = 'VEYVO';
-const defaultState = { theme: 'dark', language: 'cs', loggedRuns: 0, week: 4 };
-let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || defaultState;
+const PLAN_START = new Date(2026, 8, 7);
+const defaultState = { theme: 'dark', language: 'cs', loggedRuns: 0, week: 1, planStart: '2026-09-07' };
+let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || {...defaultState};
+if (!state.planStart) { state = { ...state, week: 1, planStart: defaultState.planStart }; localStorage.setItem('veyvo-state', JSON.stringify(state)); }
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
@@ -12,37 +14,51 @@ function applyTheme() {
   $('#themeIcon').textContent = state.theme === 'dark' ? '☾' : '☀';
   $('#themeText').textContent = state.theme === 'dark' ? 'Tmavý režim' : 'Světlý režim';
 }
+function localMidnight(date=new Date()){ return new Date(date.getFullYear(),date.getMonth(),date.getDate()); }
+function dayDifference(a,b){ return Math.floor((localMidnight(a)-localMidnight(b))/86400000); }
+function formatToday(){ return new Intl.DateTimeFormat(state.language==='en'?'en-GB':'cs-CZ',{weekday:'long',day:'numeric',month:'long'}).format(new Date()).toUpperCase(); }
+function planPosition(){ const days=dayDifference(new Date(),PLAN_START); return {days,currentWeek:days<0?0:Math.min(10,Math.floor(days/7)+1)}; }
 
 const pageMeta = {
-  home: ['PÁTEK · 4. ZÁŘÍ','Dobrý večer, Pepo.'],
+  home: [formatToday(),'Dobrý večer, Pepo.'],
   plan: ['TVŮJ ADAPTIVNÍ PROGRAM','Deset týdnů k cíli.'],
   coach: ['KONTEXTOVÝ AI TRENÉR','Na co dnes myslíš?'],
-  progress: ['DATA, KTERÁ MAJÍ SMĚR','Tvoje výkonnost.']
+  progress: ['DATA, KTERÁ MAJÍ SMĚR','Tvoje výkonnost.'],
+  connections: ['ÚČTY A SYNCHRONIZACE','Propoj svůj běžecký svět.']
 };
 function go(page) {
   $$('.page').forEach(p=>p.classList.remove('active')); $$('.nav-item').forEach(n=>n.classList.remove('active'));
-  $(`#${page}Page`).classList.add('active'); $(`.nav-item[data-page="${page}"]`).classList.add('active');
+  $(`#${page}Page`).classList.add('active'); const nav=$(`.nav-item[data-page="${page}"]`); if(nav)nav.classList.add('active');
+  if(page==='home') pageMeta.home[0]=formatToday();
   [$('#pageEyebrow').textContent,$('#pageTitle').textContent]=pageMeta[page];
+  setTimeout(() => applyLanguage());
 }
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)go(b.dataset.page)});
 $$('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));
 $('#themeToggle').addEventListener('click',()=>{state.theme=state.theme==='dark'?'light':'dark';save();applyTheme()});
 
 const workouts = [
-  ['PO','31','Regenerace','Volno nebo 20 min chůze','—'],
-  ['ÚT','01','Lehký běh','7 km · 5:30–5:55/km','7,0 km'],
-  ['ST','02','Tempo','3 × 1 km · 4:15–4:20/km','8,2 km'],
-  ['ČT','03','Regenerace','Mobilita · 15 minut','—'],
-  ['PÁ','04','Intervaly','6 × 400 m · 3:55–4:05/km','6,4 km'],
-  ['SO','05','Volno','Volitelná lehká mobilita','—'],
-  ['NE','06','Dlouhý běh','9,6 km · lehké tempo','9,6 km']
+  ['PO','Regenerace','Volno nebo 20 min chůze','—'],
+  ['ÚT','Lehký běh','7 km · 5:30–5:55/km','7,0 km'],
+  ['ST','Tempo','3 × 1 km · 4:15–4:20/km','8,2 km'],
+  ['ČT','Regenerace','Mobilita · 15 minut','—'],
+  ['PÁ','Intervaly','6 × 400 m · 3:55–4:05/km','6,4 km'],
+  ['SO','Volno','Volitelná lehká mobilita','—'],
+  ['NE','Dlouhý běh','9,6 km · lehké tempo','9,6 km']
 ];
 function renderPlan(){
+  const selectedStart=new Date(PLAN_START); selectedStart.setDate(selectedStart.getDate()+(state.week-1)*7);
+  const today=localMidnight();
   $('#weekStrip').innerHTML=Array.from({length:10},(_,i)=>`<button class="${i+1===state.week?'active':''}" data-week="${i+1}">TÝDEN<b>${i+1}</b></button>`).join('');
-  $('#calendar').innerHTML=workouts.map((w,i)=>`<div class="day-row ${i===4?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${w[1]}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[2]}</b><span>${w[3]}</span></div><div class="day-load"><span>${i===4?'DNES':''}</span><b>${w[4]}</b></div></div>`).join('');
-  $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`)}));
+  $('#calendar').innerHTML=workouts.map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();return `<div class="day-row ${isToday?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[1]}</b><span>${w[2]}</span></div><div class="day-load"><span>${isToday?'DNES':''}</span><b>${w[3]}</b></div></div>`}).join('');
+  $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`);setTimeout(()=>applyLanguage())}));
 }
-
+function updatePlanTiming(){
+  const {days,currentWeek}=planPosition();
+  $('#pageEyebrow').textContent=formatToday();
+  if(currentWeek===0){const remaining=Math.abs(days);$('#planPhaseLabel').textContent=`Začíná za ${remaining} ${remaining===1?'den':'dny'}`;$('#planStatusTitle').textContent='Plán začne 7. 9. 2026';$('#planStatusText').textContent='První týden zatím ještě nezačal.';}
+  else{$('#planPhaseLabel').textContent=`Týden ${currentWeek}/10`;$('#planStatusTitle').textContent=`Probíhá ${currentWeek}. týden`;$('#planStatusText').textContent='Plán odpovídá aktuálnímu datu.';if(state.week<1||state.week>10)state.week=currentWeek;}
+}
 const dialog=$('#logDialog');
 $('#quickLog').addEventListener('click',()=>dialog.showModal());
 $('#startWorkout').addEventListener('click',()=>{dialog.showModal();toast('Trénink připraven k záznamu')});
@@ -64,9 +80,9 @@ function sendCoachMessage(text){
 function escapeHtml(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML}
 $('#chatForm').addEventListener('submit',e=>{e.preventDefault();sendCoachMessage($('#chatInput').value);$('#chatInput').value=''});
 $$('.suggestions button').forEach(b=>b.addEventListener('click',()=>sendCoachMessage(b.textContent)));
-$('#resetDemo').addEventListener('click',()=>{state={...defaultState};save();applyTheme();renderPlan();go('home');toast('Ukázková data obnovena')});
+$('#resetDemo').addEventListener('click',()=>{state={...defaultState};save();applyTheme();updatePlanTiming();renderPlan();go('home');toast('Ukázková data obnovena')});
 
-applyTheme();renderPlan();
+applyTheme();updatePlanTiming();renderPlan();
 window.veyvo?.version().then(v=>console.info(`VEYVO ${v}`));
 
 const stravaDialog = $('#stravaDialog');
@@ -161,3 +177,4 @@ $$('[data-settings-view]').forEach(tab => tab.addEventListener('click', () => {
   $$('[data-settings-panel]').forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== tab.dataset.settingsView; });
 }));
 $('#settingsOpenStrava').addEventListener('click', () => { settingsDialog.close(); go('connections'); });
+

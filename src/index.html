@@ -21,8 +21,8 @@
       </nav>
       <div class="side-card">
         <div class="pulse-dot"></div><small>ADAPTIVE ENGINE</small>
-        <strong>Plán je aktuální</strong>
-        <p>Upraven podle posledních 3 běhů.</p>
+        <strong id="planStatusTitle">Plán začne 7. 9. 2026</strong>
+        <p id="planStatusText">První týden zatím ještě nezačal.</p>
       </div>
       <div class="sidebar-bottom">
         <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv"><span id="themeIcon">☾</span><span id="themeText">Tmavý režim</span></button>
@@ -45,7 +45,7 @@
           <div class="orb-wrap"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="score-orb"><span>84</span><small>READY</small></div></div>
         </div>
 
-        <div class="section-heading"><div><span class="eyebrow">DNEŠNÍ MISE</span><h2>Rychlost bez chaosu.</h2></div><span class="date-pill">Pá · Týden 4/10</span></div>
+        <div class="section-heading"><div><span class="eyebrow">DNEŠNÍ MISE</span><h2>Rychlost bez chaosu.</h2></div><span class="date-pill" id="planPhaseLabel">Plán ještě nezačal</span></div>
         <article class="workout-card">
           <div class="workout-index">04</div><div class="workout-main"><div class="tag-row"><span class="chip violet">INTERVALY</span><span>≈ 48 minut</span></div><h3>6 × 400 m <span>@ 3:55–4:05/km</span></h3><div class="workout-flow"><span>10 min <small>ROZKLUS</small></span><i>→</i><span>6 × 400 m <small>RYCHLE</small></span><i>→</i><span>90 s <small>MEZIKLUS</small></span><i>→</i><span>10 min <small>VÝKLUS</small></span></div></div><button class="start-btn" id="startWorkout"><span>▶</span> Spustit</button>
         </article>
@@ -57,7 +57,7 @@
       </section>
 
       <section class="page" id="planPage">
-        <div class="page-intro"><div><span class="chip violet">CÍL · 5 KM POD 20:00</span><h2>Plán, který se hýbe s tebou.</h2><p>10 týdnů · 4 běhy týdně · právě jsi ve 4. týdnu</p></div><button class="primary" id="adaptPlan">✦ Upravit podle pocitu</button></div>
+        <div class="page-intro"><div><span class="chip violet">CÍL · 5 KM POD 20:00</span><h2>Plán, který se hýbe s tebou.</h2><p id="planSummary">10 týdnů · 4 běhy týdně · začátek 7. 9. 2026</p></div><button class="primary" id="adaptPlan">✦ Upravit podle pocitu</button></div>
         <div class="week-strip" id="weekStrip"></div>
         <div class="plan-layout"><div class="calendar" id="calendar"></div><aside class="week-summary panel"><span class="eyebrow">TÝDENNÍ ZÁTĚŽ</span><div class="load-ring"><b>72</b><small>OPTIMÁLNÍ</small></div><div class="summary-stat"><span>Objem</span><b>31,2 km</b></div><div class="summary-stat"><span>Kvalitní tréninky</span><b>2</b></div><div class="summary-stat"><span>Regenerační dny</span><b>3</b></div><p class="safe-note">◇ Bezpečnostní engine drží růst objemu pod 8 %.</p></aside></div>
       </section>
@@ -107,3 +107,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
