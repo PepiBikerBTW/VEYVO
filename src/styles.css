@@ -48,3 +48,8 @@
 .message p{white-space:pre-wrap;overflow-wrap:anywhere}.weekly-review p,.day-workout span{overflow-wrap:anywhere}
 button:disabled{opacity:.55;cursor:wait}.settings-dialog{max-height:85vh;overflow-y:auto}
 [hidden]{display:none!important}
+
+.ai-save-result{margin:12px 0 0;padding:13px 15px;border:1px solid var(--line);border-radius:12px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.ai-save-result[data-state="saved"]{color:var(--text);border-color:#39ad80;background:rgba(57,173,128,.12)}
+.ai-save-result[data-state="error"]{color:var(--text);border-color:#ee7777;background:rgba(238,119,119,.12)}
+#aiSave[data-save-state="saved"]{background:#39ad80;color:#071222;box-shadow:none}

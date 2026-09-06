@@ -44,6 +44,17 @@ app.whenReady().then(async()=>{
     await execute("$('#aiKey').value='sk-'+'test'.repeat(8);$('#aiConsent').checked=true;$('#aiSave').click();");
     await until('aiStatus.configured && !aiSettingsBusy');
     await check("$('#aiKey').value==='' && !localStorage.getItem('veyvo-state').includes('sk-')",'Key not in renderer storage');
+    await check("$('#aiSave').textContent==='Uloženo ✓' && !$('#aiSettingsResult').hidden && $('#aiSettingsResult').dataset.state==='saved'",'Visible saved confirmation');
+    await check("$('#aiSettingsResult').getBoundingClientRect().top < $('.ai-profile').getBoundingClientRect().top",'Save status beside connection controls');
+    await execute("$('#aiKey').value='sk-'+'retry'.repeat(8);$('#aiConsent').checked=false;$('#aiSave').click();");
+    await until("!aiSettingsBusy && aiSaveState==='error'");
+    await check("$('#aiSave').textContent==='Zkusit znovu' && $('#aiSettingsResult').textContent.includes('Neuloženo: Potvrď') && !$('#aiSettingsResult').textContent.includes('remote method')",'Actionable save error without IPC wrapper');
+    await check("$('#aiKey').value.length>10 && !$('#aiKey').disabled",'Failed key retained for retry');
+    await execute("$('#aiConsent').checked=true;$('#aiSave').click();");
+    await until("!aiSettingsBusy && aiSaveState==='saved'");
+    await execute("applyLanguage();");
+    await check("$('#aiSave').textContent==='Uloženo ✓' && $('#aiKey').value===''",'Saved state survives interface refresh');
+
     await execute("importStravaActivities([{id:'100',name:'Morning run',startDateLocal:'2026-09-01T08:00:00',distanceKm:5,movingTime:1500,averageHeartrate:140,totalElevationGain:20}]);");
     await until("Boolean(state.aiPlans['1']) && !aiPlanBusy");
     await check("state.runHistory[0].week===0 && state.runHistory[0].movingSeconds===1500 && state.runHistory[0].effort===null",'Pre-plan Strava run retained with real duration');
