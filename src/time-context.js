@@ -24,7 +24,7 @@
     if (days < 0) return en ? `The plan starts in ${-days} day(s).` : `Do začátku plánu zbývá ${-days} dní.`;
     if (days >= 70) return en ? 'The ten-week plan has ended.' : 'Desetitýdenní plán už skončil.';
     const week = Math.floor(days / 7) + 1;
-    const plan = week === 1 ? baseWorkouts : weekPlans[String(week)];
+    const plan = weekPlans[String(week)];
     if (!plan) return en ? `Week ${week}: the plan is not ready yet.` : `${week}. týden: plán zatím není připravený.`;
     const workout = plan[days % 7];
     return en ? `Week ${week}: ${workout[1]} · ${workout[2]}.` : `${week}. týden: ${workout[1]} · ${workout[2]}.`;

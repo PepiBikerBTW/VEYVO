@@ -4,7 +4,7 @@ process.env.TZ = 'Europe/Prague';
 const time = require('../src/time-context');
 const planStart = new Date(2026,8,7);
 const baseWorkouts = ['Rest','Easy','Tempo','Recovery','Intervals','Rest','Long'].map(name=>['',name,'details']);
-const options = {planStart,baseWorkouts,weekPlans:{},language:'cs',now:new Date(2026,8,6,23,59)};
+const options = {planStart,baseWorkouts,weekPlans:{'1':baseWorkouts},language:'cs',now:new Date(2026,8,6,23,59)};
 test('clock and calendar questions bypass sleep replies',()=>{
   assert.match(time.answer('Kolik je hodin?',options),/23:59.*Europe\/Prague/);
   assert.match(time.answer('Co je dnes za den?',options),/neděle.*2026/);

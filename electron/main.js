@@ -4,6 +4,46 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
+const { pathToFileURL } = require('url');
+const { createAiClient } = require('./ai');
+const { createSettingsStore } = require('./ai-settings');
+let aiStore;
+let aiSettingsRevision = 0;
+let aiSaving = false;
+function getAiStore() { return aiStore ||= createSettingsStore({file:path.join(app.getPath('userData'),'openai.secure'),safeStorage}); }
+const ai = createAiClient({getSettings:()=>getAiStore().read()});
+function trustedAiSender(event) {
+  const expected=pathToFileURL(path.join(__dirname,'..','src','index.html')).href;
+  if(event.sender!==mainWindow?.webContents || event.senderFrame!==event.sender.mainFrame || event.senderFrame.url!==expected) throw Error('Neplatný zdroj AI požadavku.');
+}
+function aiHandler(channel,handler) {
+  ipcMain.handle(channel,async(event,payload)=>{trustedAiSender(event);return handler(payload);});
+}
+aiHandler('ai-status',()=>getAiStore().status());
+aiHandler('ai-save',async input=>{
+  if(aiSaving)throw Error('Ověření připojení už probíhá.');
+  aiSaving=true;
+  const revision=aiSettingsRevision;
+  try{
+    const settings=getAiStore().candidate(input);
+    const previous=getAiStore().read();
+    if(!previous || previous.apiKey!==settings.apiKey || previous.model!==settings.model)await ai.test(settings);
+    if(revision!==aiSettingsRevision)throw Error('Připojení bylo mezitím změněno.');
+    const status=getAiStore().write(settings);aiSettingsRevision++;return status;
+  }finally{aiSaving=false;}
+});
+aiHandler('ai-disconnect',()=>{aiSettingsRevision++;return getAiStore().disconnect();});
+aiHandler('ai-chat',async input=>{
+  const revision=aiSettingsRevision,result=await ai.chat(input);
+  if(revision!==aiSettingsRevision)throw Error('AI připojení bylo během požadavku změněno.');
+  return result;
+});
+aiHandler('ai-plan',async input=>{
+  if(input?.automatic&&!getAiStore().read()?.automatic)throw Error('Automatické plánování je vypnuté.');
+  const revision=aiSettingsRevision,result=await ai.plan(input);
+  if(revision!==aiSettingsRevision)throw Error('AI připojení bylo během požadavku změněno.');
+  return result;
+});
 
 const STRAVA_CLIENT_ID = '275720';
 let mainWindow;
@@ -52,7 +92,7 @@ async function syncStrava() {
   const activities = await response.json();
   return activities.filter(item => ['Run', 'TrailRun', 'VirtualRun'].includes(item.sport_type || item.type)).map(item => ({
     id: String(item.id), name: item.name, sportType: item.sport_type || item.type, startDate: item.start_date, startDateLocal: item.start_date_local,
-    distanceKm: Math.round(item.distance / 100) / 10, movingTime: item.moving_time, elapsedTime: item.elapsed_time,
+    distanceKm: Math.round(item.distance / 10) / 100, movingTime: item.moving_time, elapsedTime: item.elapsed_time,
     averageHeartrate: item.average_heartrate || null, totalElevationGain: item.total_elevation_gain || 0
   }));
 }

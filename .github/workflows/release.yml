@@ -18,6 +18,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npx electron-builder --win nsis --config.win.artifactName='VEYVO-Setup-${version}-${arch}.${ext}' --publish never
       - run: npx electron-builder --win portable --config.win.artifactName='VEYVO-Portable-${version}-${arch}.${ext}' --publish never
       - uses: softprops/action-gh-release@v2

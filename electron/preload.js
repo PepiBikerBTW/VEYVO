@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('veyvo', {
+  aiStatus: () => ipcRenderer.invoke('ai-status'),
+  saveAi: settings => ipcRenderer.invoke('ai-save',settings),
+  disconnectAi: () => ipcRenderer.invoke('ai-disconnect'),
+  chat: request => ipcRenderer.invoke('ai-chat',request),
+  generatePlan: request => ipcRenderer.invoke('ai-plan',request),
   version: () => ipcRenderer.invoke('app-version'),
   checkForUpdates: () => ipcRenderer.invoke('updater-check'),
   installUpdate: () => ipcRenderer.invoke('updater-install'),

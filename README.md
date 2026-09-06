@@ -1,36 +1,43 @@
 # VEYVO
 
-**Your adaptive running coach.** Desktopová Windows aplikace pro personalizované a bezpečně adaptované běžecké plány.
+**Your adaptive running coach.** Desktopová Windows aplikace s OpenAI coachem a automatickou adaptací běžeckých plánů podle skutečných výkonů.
 
-## Vývoj
+## Spuštění a sestavení
 
 ```powershell
 npm install
 npm start
-```
-
-## Windows build
-
-```powershell
+npm test
+npm run test:ui
 npm run build
 ```
 
-Instalátor i portable `.exe` se vytvoří ve složce `release`.
+Instalátor a portable aplikace vznikají ve složce `release`. Tag `v*` na GitHubu spustí testy, Windows build a publikování aktualizace.
 
-## Rozsah prototypu
+## Zapnutí skutečné AI
 
-- přehled připravenosti a dnešního tréninku
-- desetidenní/týdenní adaptivní plán
-- lokální bezpečnostní pravidla a záznam náročnosti
-- kontextový VEYVO Coach
-- statistiky, predikce 5 km a cesta k cíli
-- světlý a tmavý režim
-- lokální uchování nastavení
+1. Otevři **Nastavení → AI trenér** nebo tlačítko **Nastavit AI a běžecký profil** v plánu.
+2. Zadej vlastní OpenAI API klíč, ponech `gpt-5.4-mini` nebo zvol model svého API účtu podporující Responses API a Structured Outputs.
+3. Potvrď odesílání zpráv, cíle, plánu a běžecké historie včetně poznámek do OpenAI. Volba automatické adaptace je samostatná.
+4. Klikni na **Uložit a ověřit připojení**. Nový klíč/model se ověří krátkým API požadavkem. OpenAI API používá vlastní kredit a účtování.
+5. Ulož cíl a dostupné běžecké dny. Importuj běhy ze Stravy nebo zapiš běh s datem, vzdáleností a časem `mm:ss` / `h:mm:ss`.
 
-Cloudové účty, skutečné AI API a integrace sportovních služeb jsou připravené jako další produkční fáze; demo odpovědi coache zatím běží lokálně.
+API klíč je šifrovaný pomocí Electron `safeStorage` v uživatelském adresáři aplikace. Uložený klíč se nevrací do rozhraní a není v `localStorage`, repozitáři ani instalátoru. **Odpojit a smazat klíč** připojení odstraní. Síťové požadavky používají pouze pevnou OpenAI HTTPS adresu z hlavního procesu Electronu.
 
-## Časový kontext
+Integrace používá [OpenAI Responses API se strukturovanými výstupy](https://developers.openai.com/api/docs/guides/structured-outputs) a jako výchozí model [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini). Požadavky nastavují `store: false`; to neznamená, že data vůbec nejsou zpracována poskytovatelem.
 
-VEYVO používá místní datum, čas a časové pásmo zařízení. Hodiny, pozdrav a dnešní plán se obnovují průběžně i po návratu do okna. Lokální coach rozpoznává dotazy na čas, datum a trénink dnes, zítra nebo včera. Časové odpovědi fungují bez internetu; obecná konverzace zatím používá demo odpovědi.
+## AI coach a automatický plán
 
-Ověření: `npm test` a `npm run test:ui`.
+Coach používá skutečné AI odpovědi a posledních 20 zpráv konverzace. Dostává místní čas, datum, časové pásmo, cíl, dostupné dny, uložené plány a až 100 platných běhů za posledních 90 dnů. Chybějící tep a subjektivní náročnost zůstávají neznámé. Při chybě připojení aplikace zobrazí chybu, nikoli demo odpověď. Chat sám plán nemění; změny ukládá generátor plánu.
+
+Se zapnutou automatickou adaptací se po novém ručním záznamu, importu ze Stravy nebo změně profilu aktualizují budoucí tréninky aktuálního týdne. Od neděle 18:00 se připravuje další týden; pokud byla aplikace zavřená, vytvoří se po příštím spuštění. Automatika funguje při otevřené aplikaci a vyžaduje internet. Stejná úspěšně zpracovaná data se znovu neposílají; po chybě je automatické opakování omezeno na nejdříve 30 minut. Ruční tlačítko může požadavek zopakovat.
+
+AI vyhodnocuje vzdálenosti, skutečné časy a tempa, objem za poslední čtyři týdny, náročnost, tep a poznámky, pokud jsou dostupné. Pro první plán potřebuje alespoň jeden platný běh za posledních 28 dnů. S malým množstvím dat dostává pokyn k opatrnému plánu bez intenzivních tréninků.
+
+Aplikace před uložením ověřuje strukturu sedmi dnů, dostupné dny, délku běhů, tempo, zbývající objem a rozestupy intenzivních tréninků. Používá produktový limit růstu objemu 8 % proti pozorované zátěži; nejde o záruku zdravotní bezpečnosti. Minulé a dokončené dny se nepřepisují. Odpověď vytvořená ze zastaralých dat se neuloží a selhání zachová předchozí plán. Ukládá se vysvětlení změn, model a čas vytvoření.
+
+Dosavadní deset týdnů dlouhý program stále začíná 7. 9. 2026. Jeho starší lokálně vytvořené plány se zachovají, ale nové AI označení dostávají až plány z OpenAI. Ostatní ukázkové ukazatele připravenosti a predikce v prototypu nejsou vstupem AI.
+
+## Testování
+
+`npm test` ověřuje výpočty výkonů a kalendáře, datový kontrakt OpenAI, chybové odpovědi, validaci plánů a ukládání nastavení. `npm run test:ui` spustí izolovaná skrytá Electron okna a ověří čas, šifrování, připojení, importy, konverzaci, adaptaci i zachování dat při chybě. API odpovědi jsou v testech simulované; testy nepotřebují skutečný klíč ani nečerpají kredit.

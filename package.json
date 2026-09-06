@@ -1,6 +1,6 @@
 {
   "name": "veyvo",
-  "version": "0.1.15",
+  "version": "0.2.0",
   "description": "VEYVO — Your adaptive running coach",
   "main": "electron/main.js",
   "author": "VEYVO",
@@ -11,7 +11,7 @@
     "build": "electron-builder --win nsis portable",
     "pack": "electron-builder --dir",
     "test": "node --test tests/*.test.js",
-    "test:ui": "electron tests/time-ui.cjs"
+    "test:ui": "electron tests/time-ui.cjs && electron tests/ai-ui.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",
