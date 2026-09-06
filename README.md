@@ -28,3 +28,9 @@ Instalátor i portable `.exe` se vytvoří ve složce `release`.
 - lokální uchování nastavení
 
 Cloudové účty, skutečné AI API a integrace sportovních služeb jsou připravené jako další produkční fáze; demo odpovědi coache zatím běží lokálně.
+
+## Časový kontext
+
+VEYVO používá místní datum, čas a časové pásmo zařízení. Hodiny, pozdrav a dnešní plán se obnovují průběžně i po návratu do okna. Lokální coach rozpoznává dotazy na čas, datum a trénink dnes, zítra nebo včera. Časové odpovědi fungují bez internetu; obecná konverzace zatím používá demo odpovědi.
+
+Ověření: `npm test` a `npm run test:ui`.

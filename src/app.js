@@ -20,12 +20,12 @@ function applyTheme() {
   $('#themeText').textContent = state.theme === 'dark' ? 'Tmavý režim' : 'Světlý režim';
 }
 function localMidnight(date=new Date()){ return new Date(date.getFullYear(),date.getMonth(),date.getDate()); }
-function dayDifference(a,b){ return Math.floor((localMidnight(a)-localMidnight(b))/86400000); }
+function dayDifference(a,b){ return VeyvoTime.dayDifference(a,b); }
 function formatToday(){ return new Intl.DateTimeFormat(state.language==='en'?'en-GB':'cs-CZ',{weekday:'long',day:'numeric',month:'long'}).format(new Date()).toUpperCase(); }
 function planPosition(){ const days=dayDifference(new Date(),PLAN_START); return {days,currentWeek:days<0?0:Math.min(10,Math.floor(days/7)+1)}; }
 
 const pageMeta = {
-  home: [formatToday(),'Dobrý večer, Pepo.'],
+  home: [formatToday(),VeyvoTime.context(new Date(),state.language).greeting],
   plan: ['TVŮJ ADAPTIVNÍ PROGRAM','Deset týdnů k cíli.'],
   coach: ['KONTEXTOVÝ AI TRENÉR','Na co dnes myslíš?'],
   progress: ['DATA, KTERÁ MAJÍ SMĚR','Tvoje výkonnost.'],
@@ -34,7 +34,7 @@ const pageMeta = {
 function go(page) {
   $$('.page').forEach(p=>p.classList.remove('active')); $$('.nav-item').forEach(n=>n.classList.remove('active'));
   $(`#${page}Page`).classList.add('active'); const nav=$(`.nav-item[data-page="${page}"]`); if(nav)nav.classList.add('active');
-  if(page==='home') pageMeta.home[0]=formatToday();
+  if(page==='home') pageMeta.home=[formatToday(),VeyvoTime.context(new Date(),state.language).greeting];
   [$('#pageEyebrow').textContent,$('#pageTitle').textContent]=pageMeta[page];
   setTimeout(() => applyLanguage());
 }
@@ -133,8 +133,9 @@ function renderPlan(){
 }
 function updatePlanTiming(){
   const {days,currentWeek}=planPosition();
-  $('#pageEyebrow').textContent=formatToday();
+  if($('#homePage').classList.contains('active')) $('#pageEyebrow').textContent=formatToday();
   if(currentWeek===0){const remaining=Math.abs(days);$('#planPhaseLabel').textContent=`Začíná za ${remaining} ${remaining===1?'den':'dny'}`;$('#planStatusTitle').textContent='Plán začne 7. 9. 2026';$('#planStatusText').textContent='První týden zatím ještě nezačal.';}
+  else if(days>=70){$('#planPhaseLabel').textContent='Plán dokončen';$('#planStatusTitle').textContent='Desetitýdenní plán skončil';$('#planStatusText').textContent='Je čas připravit další program.';}
   else{$('#planPhaseLabel').textContent=`Týden ${currentWeek}/10`;$('#planStatusTitle').textContent=`Probíhá ${currentWeek}. týden`;$('#planStatusText').textContent='Plán odpovídá aktuálnímu datu.';if(state.week<1||state.week>10)state.week=currentWeek;}
 }
 const dialog=$('#logDialog');
@@ -150,15 +151,15 @@ $('#saveLog').addEventListener('click',e=>{
 $('#adaptPlan').addEventListener('click',()=>{go('coach');setTimeout(()=>sendCoachMessage('Chci upravit plán podle toho, jak se dnes cítím.'),200)});
 
 const replies = [
-  { keys:['spal','spánek','hodin'], text:'Kvůli horšímu spánku bych dnes snížil intenzitu. Místo 6 opakování dej 4 × 400 m v kontrolovaném tempu a pokud se při rozklusu necítíš dobře, změň trénink na 30 minut lehce.' },
+  { keys:['spal','spánek','spanek','slept','sleep'], text:'Kvůli horšímu spánku bych dnes snížil intenzitu. Místo 6 opakování dej 4 × 400 m v kontrolovaném tempu a pokud se při rozklusu necítíš dobře, změň trénink na 30 minut lehce.' },
   { keys:['lýtk','bolí','bolest'], text:'Bolest není signál k přitvrzení. Dnešní běh vynech a zvol lehkou chůzi bez bolesti. Pokud je bolest ostrá, zhoršuje se nebo přetrvává, obrať se na zdravotníka. Plán zatím označím k odlehčení.' },
   { keys:['přesuň','dlouhý','neděle'], text:'Jasně. Dlouhý běh přesunu o den a pohlídám, aby vedle něj nebyl další náročný trénink. Týdenní objem zůstane stejný.' },
   { keys:['unaven','únava','těžké'], text:'Rozumím. Doporučuji dnes jen 25–35 minut velmi lehce. Kvalitní jednotku posuneme a zachováme minimálně 48 hodin do další vysoké intenzity.' }
 ];
 function sendCoachMessage(text){
   if(!text.trim())return; const m=$('#messages');m.insertAdjacentHTML('beforeend',`<div class="message user"><p>${escapeHtml(text)}</p></div>`);m.scrollTop=m.scrollHeight;
-  const lower=text.toLowerCase();const answer=replies.find(r=>r.keys.some(k=>lower.includes(k)))?.text||'Podívám se na tvůj aktuální plán, poslední zátěž a regeneraci. Doporučení upravím tak, aby tě posouvalo k cíli bez zbytečného rizika. Jak náročně se cítíš na škále 1–10?';
-  setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="message coach"><span><img src="../assets/veyvo-icon.png" alt="VEYVO"></span><p>${answer}</p></div>`);m.scrollTop=m.scrollHeight},450);
+  const lower=text.toLowerCase();const answer=VeyvoTime.answer(text,{now:new Date(),language:state.language,planStart:PLAN_START,weekPlans:state.weekPlans,baseWorkouts})||replies.find(r=>r.keys.some(k=>lower.includes(k)))?.text||'Podívám se na tvůj aktuální plán, poslední zátěž a regeneraci. Doporučení upravím tak, aby tě posouvalo k cíli bez zbytečného rizika. Jak náročně se cítíš na škále 1–10?';
+  setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="message coach"><span><img src="../assets/veyvo-icon.png" alt="VEYVO"></span><p>${escapeHtml(answer)}</p></div>`);m.scrollTop=m.scrollHeight},450);
 }
 function escapeHtml(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML}
 $('#chatForm').addEventListener('submit',e=>{e.preventDefault();sendCoachMessage($('#chatInput').value);$('#chatInput').value=''});
@@ -224,6 +225,9 @@ function updateMessage(status) {
 window.veyvo?.onUpdaterStatus(updateMessage);renderProfilePreferences();
 // Persistent Czech / English interface language
 const textTranslations = {
+  'Každý den':'Every day','má svůj plán.':'has its own plan.',
+  'Dnešní trénink najdeš níže podle aktuálního data. Údaje připravenosti jsou zatím ukázkové.':'Find today’s workout below, based on the current date. Readiness figures are sample data.',
+  'Zeptej se mě, kolik je hodin, co je dnes za den nebo jaký trénink máš zítra. Vycházím z času tvého zařízení a dostupného plánu.':'Ask me the time, today’s date or tomorrow’s workout. I use your device clock and the available plan.',
   'Přehled':'Overview','Můj plán':'My plan','VEYVO Coach':'VEYVO Coach','Výkonnost':'Performance','Propojení':'Connections',
   'Plán je aktuální':'Plan is up to date','Upraven podle posledních 3 běhů.':'Adjusted from the last 3 runs.','Tmavý režim':'Dark mode','Světlý režim':'Light mode','Jasné prostředí':'Bright appearance','Šetrnější večer':'Easier on the eyes','Nastavení':'Settings','Účet, aktualizace a data':'Account, updates and data',
   'Dobrý večer, Pepo.':'Good evening, Pepa.','Zapsat běh':'Log run','PŘIPRAVENOST 84':'READINESS 84','Dnes můžeš':'Today you can','běžet svižně.':'run fast.','Spánek i regenerace jsou v normě. Tvůj plán počítá s intervalovou jednotkou.':'Sleep and recovery look good. Your plan includes an interval session.','SPÁNEK':'SLEEP','ÚNAVA':'FATIGUE','Nízká':'Low','ZÁTĚŽ':'LOAD','Optimální':'Optimal','DNEŠNÍ MISE':'TODAY’S MISSION','Rychlost bez chaosu.':'Speed without chaos.','DNEŠNÍ TRÉNINK':'TODAY’S WORKOUT','Spustit':'Start',
@@ -242,6 +246,7 @@ function applyLanguage() {
   const placeholders={'Napiš, jak se dnes cítíš…':'Tell me how you feel today…','Jak ses cítil? Bolest, únava, počasí…':'How did you feel? Pain, fatigue, weather…'};
   $$('[placeholder]').forEach(el=>{if(!el.dataset.csPlaceholder)el.dataset.csPlaceholder=el.placeholder;el.placeholder=language==='en'?(placeholders[el.dataset.csPlaceholder]||el.dataset.csPlaceholder):el.dataset.csPlaceholder});
   $('#appLanguage').value=language;
+  refreshTimeContext();
 }
 $('#appLanguage').addEventListener('change', event => { state.language=event.target.value; save(); applyLanguage(); toast(state.language==='en'?'Language changed to English':'Jazyk změněn na češtinu'); });
 applyLanguage();
@@ -254,3 +259,36 @@ $$('[data-settings-view]').forEach(tab => tab.addEventListener('click', () => {
   $$('[data-settings-panel]').forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== tab.dataset.settingsView; });
 }));
 $('#settingsOpenStrava').addEventListener('click', () => { settingsDialog.close(); go('connections'); });
+
+// Refresh from the device clock, including after sleep and calendar-day changes.
+let lastCalendarDay = '';
+function refreshTimeContext() {
+  const now = new Date(), current = VeyvoTime.context(now, state.language);
+  $('#localClock').textContent = current.time;
+  $('#localClock').title = current.date + ' · ' + current.timeZone;
+  if ($('#homePage').classList.contains('active')) {
+    $('#pageEyebrow').textContent = current.date.toUpperCase();
+    $('#pageTitle').textContent = current.greeting;
+  }
+  const todayPlan = VeyvoTime.describePlan(now, PLAN_START, state.weekPlans, baseWorkouts, state.language);
+  $('#coachWelcome').textContent = current.greeting + ' ' + current.date + '. ' + todayPlan;
+  $('#todayPlanText').textContent = state.language === 'en' ? 'Your plan for today.' : 'Tvůj plán na dnešek.';
+  $('#todayWorkout').textContent = todayPlan;
+  const position = plannedPosition(now);
+  const workout = position && (position.week === 1 || state.weekPlans[String(position.week)])
+    ? getWeekPlan(position.week)[position.day] : null;
+  $('#startWorkout').hidden = !workout || ['Regenerace','Volno'].includes(workout[1]);
+}
+function refreshCalendar() {
+  const now = new Date();
+  const day = [now.getFullYear(), now.getMonth(), now.getDate(), now.getTimezoneOffset()].join('-');
+  if (day !== lastCalendarDay) {
+    lastCalendarDay = day;
+    updatePlanTiming(); renderPlan(); renderWeeklyReview(); checkSundayPlanning();
+  }
+  refreshTimeContext();
+}
+refreshCalendar();
+setInterval(refreshCalendar, 10000);
+window.addEventListener('focus', refreshCalendar);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCalendar(); });
