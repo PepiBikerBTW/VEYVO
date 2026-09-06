@@ -7,6 +7,7 @@ if (!state.planStart) { state = { ...state, week: 1, planStart: defaultState.pla
 state.runHistory ||= [];
 state.weekPlans ||= {};
 state.weekReviews ||= {};
+state.stravaActivityIds ||= [];
 localStorage.setItem('veyvo-state', JSON.stringify(state));
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -94,13 +95,40 @@ function checkSundayPlanning(){
   const hasFinalRun=runsForWeek(reviewWeek).some(run=>run.type==='Dlouhý běh'&&new Date(run.date).getDay()===0);
   if(hasFinalRun&&generateNextWeekPlan(reviewWeek)){renderPlan();renderWeeklyReview();toast(`AI připravila plán pro ${reviewWeek+1}. týden`)}
 }
+function formatDuration(seconds){const minutes=Math.floor(seconds/60),rest=seconds%60;return `${minutes}:${String(rest).padStart(2,'0')}`;}
+function plannedPosition(dateValue){
+  const date=new Date(dateValue),days=dayDifference(date,PLAN_START);
+  if(days<0||days>=70)return null;
+  return {week:Math.floor(days/7)+1,day:days%7};
+}
+function completedRun(week,day){return state.runHistory.find(run=>run.week===week&&run.plannedDay===day);}
+function importStravaActivities(activities){
+  let imported=0;
+  for(const activity of activities){
+    if(state.stravaActivityIds.includes(activity.id))continue;
+    const position=plannedPosition(activity.startDateLocal||activity.startDate);
+    if(!position||!unlockedWeeks().includes(position.week))continue;
+    const workout=getWeekPlan(position.week)[position.day];
+    if(!workout||['Regenerace','Volno'].includes(workout[1]))continue;
+    state.stravaActivityIds.push(activity.id);
+    state.runHistory.push({id:`strava-${activity.id}`,stravaActivityId:activity.id,source:'strava',date:activity.startDateLocal||activity.startDate,week:position.week,plannedDay:position.day,type:workout[1],name:activity.name,distance:activity.distanceKm,time:formatDuration(activity.movingTime),effort:7,note:`Automaticky importováno ze Stravy${activity.averageHeartrate?` · průměrný tep ${Math.round(activity.averageHeartrate)}`:''}`});
+    imported++;
+  }
+  if(imported){state.loggedRuns+=imported;save();renderPlan();renderWeeklyReview();checkSundayPlanning();}
+  return imported;
+}
+async function syncStrava(showResult=false){
+  if(!window.veyvo?.syncStrava)return;
+  try{const activities=await window.veyvo.syncStrava();const imported=importStravaActivities(activities);state.stravaLastSync=new Date().toISOString();save();renderStravaState();if(showResult||imported)toast(imported?`${imported} běhů označeno jako dokončených`:'Strava je aktuální');}
+  catch(error){if(showResult)toast(error.message||'Synchronizace Stravy se nezdařila');}
+}
 function renderPlan(){
   const availableWeeks=unlockedWeeks();
   if(!availableWeeks.includes(state.week)){state.week=maxUnlockedWeek();save()}
   const selectedStart=new Date(PLAN_START); selectedStart.setDate(selectedStart.getDate()+(state.week-1)*7);
   const today=localMidnight();
   $('#weekStrip').innerHTML=availableWeeks.map(week=>`<button class="${week===state.week?'active':''} ${state.weekPlans[String(week)]?'generated':''}" data-week="${week}">TÝDEN<b>${week}</b></button>`).join('');
-  $('#calendar').innerHTML=getWeekPlan(state.week).map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();return `<div class="day-row ${isToday?'today':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${[1,2,4,6].includes(i)?'↗':'◇'}</div><div class="day-workout"><b>${w[1]}</b><span>${w[2]}</span></div><div class="day-load"><span>${isToday?'DNES':''}</span><b>${w[3]}</b></div></div>`}).join('');
+  $('#calendar').innerHTML=getWeekPlan(state.week).map((w,i)=>{const date=new Date(selectedStart);date.setDate(date.getDate()+i);const isToday=date.getTime()===today.getTime();const done=completedRun(state.week,i);return `<div class="day-row ${isToday?'today':''} ${done?'completed':''}"><div class="day-date"><span>${w[0]}</span><b>${String(date.getDate()).padStart(2,'0')}</b></div><div class="sport-icon">${done?'✓':([1,2,4,6].includes(i)?'↗':'◇')}</div><div class="day-workout"><b>${w[1]}</b><span>${done?`${done.distance} km · ${done.time}`:w[2]}</span></div><div class="day-load"><span>${done?'DOKONČENO':(isToday?'DNES':'')}</span><b>${done?'STRAVA ✓':w[3]}</b></div></div>`}).join('');
   $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`);setTimeout(()=>applyLanguage())}));
 }
 function updatePlanTiming(){
@@ -135,7 +163,7 @@ function sendCoachMessage(text){
 function escapeHtml(v){const d=document.createElement('div');d.textContent=v;return d.innerHTML}
 $('#chatForm').addEventListener('submit',e=>{e.preventDefault();sendCoachMessage($('#chatInput').value);$('#chatInput').value=''});
 $$('.suggestions button').forEach(b=>b.addEventListener('click',()=>sendCoachMessage(b.textContent)));
-$('#resetDemo').addEventListener('click',()=>{state={...defaultState};save();applyTheme();updatePlanTiming();renderPlan();renderWeeklyReview();checkSundayPlanning();go('home');toast('Ukázková data obnovena')});
+$('#resetDemo').addEventListener('click',()=>{state={...defaultState,runHistory:[],weekPlans:{},weekReviews:{},stravaActivityIds:[]};save();applyTheme();updatePlanTiming();renderPlan();renderWeeklyReview();checkSundayPlanning();go('home');toast('Ukázková data obnovena')});
 
 applyTheme();updatePlanTiming();renderPlan();renderWeeklyReview();checkSundayPlanning();
 window.veyvo?.version().then(v=>console.info(`VEYVO ${v}`));
@@ -143,31 +171,24 @@ setInterval(checkSundayPlanning, 15*60*1000);
 
 const stravaDialog = $('#stravaDialog');
 function renderStravaState() {
-  const connected = Boolean(state.stravaConnected);
-  $('#stravaStatus').textContent = connected ? 'PŘIPRAVENO' : 'NEPŘIPOJENO';
-  $('#stravaStatus').classList.toggle('connected', connected);
-  $('#connectStrava').hidden = connected;
-  $('#disconnectStrava').hidden = !connected;
+  const connected=Boolean(state.stravaConnected),statusText=connected?'PŘIPOJENO':'NEPŘIPOJENO';
+  $('#stravaStatus').textContent=statusText; $('#stravaStatus').classList.toggle('connected',connected);
+  $('#settingsStravaStatus').textContent=statusText; $('#settingsStravaStatus').classList.toggle('connected',connected);
+  $('#connectStrava').hidden=connected; $('#disconnectStrava').hidden=!connected;
+  $('#stravaSyncState').textContent=connected?(state.stravaLastSync?`Naposledy synchronizováno ${new Date(state.stravaLastSync).toLocaleString('cs-CZ')}`:'Připojeno · čekám na první synchronizaci'):'Čeká na propojení';
 }
-$('#connectStrava').addEventListener('click', () => stravaDialog.showModal());
-$('#authorizeStrava').addEventListener('click', async (event) => {
-  event.preventDefault();
-  const clientId = $('#stravaClientId').value.trim();
-  if (!clientId || !/^\d+$/.test(clientId)) return toast('Zadej platné číselné Strava Client ID');
-  if (!$('#stravaConsent').checked) return toast('Nejdřív potvrď oprávnění k aktivitám');
-  const redirect = encodeURIComponent('http://localhost/strava/callback');
-  const url = `https://www.strava.com/oauth/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${redirect}&approval_prompt=auto&scope=read,activity:read_all`;
-  await window.veyvo?.openExternal(url);
-  state.stravaClientId = clientId;
-  state.stravaConnected = true;
-  save(); renderStravaState(); stravaDialog.close();
-  toast('Autorizace otevřena ve webovém prohlížeči');
+$('#connectStrava').addEventListener('click',()=>stravaDialog.showModal());
+$('#authorizeStrava').addEventListener('click',async event=>{
+  event.preventDefault(); const secret=$('#stravaClientSecret').value.trim();
+  if(secret.length<8)return toast('Zadej Strava Client Secret');
+  if(!$('#stravaConsent').checked)return toast('Nejdřív potvrď oprávnění k aktivitám');
+  try{await window.veyvo.connectStrava(secret);stravaDialog.close();$('#stravaClientSecret').value='';toast('Dokonči přihlášení ve webovém prohlížeči');}catch(error){toast(error.message||'Stravu se nepodařilo otevřít');}
 });
-$('#disconnectStrava').addEventListener('click', () => {
-  state.stravaConnected = false; delete state.stravaClientId; save(); renderStravaState();
-  toast('Strava byla od VEYVO odpojena');
-});
+$('#disconnectStrava').addEventListener('click',async()=>{await window.veyvo.disconnectStrava();state.stravaConnected=false;save();renderStravaState();toast('Strava byla od VEYVO odpojena');});
+window.veyvo?.onStravaEvent(event=>{if(event.type==='connected'){state.stravaConnected=true;save();renderStravaState();toast('Strava je připojená');syncStrava(true);}else toast(event.message||'Připojení Stravy se nezdařilo');});
+window.veyvo?.stravaStatus().then(status=>{state.stravaConnected=status.connected;save();renderStravaState();if(status.connected)syncStrava();});
 renderStravaState();
+setInterval(()=>{if(state.stravaConnected)syncStrava();},5*60*1000);
 
 // Profile menu, appearance and GitHub Releases updater
 const profileMenu = $('#profileMenu');

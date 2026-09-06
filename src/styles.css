@@ -22,3 +22,6 @@
 
 /* Sunday adaptive planning */
 .weekly-review{display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:15px;border:1px solid color-mix(in srgb,var(--lime) 25%,var(--line));background:linear-gradient(100deg,color-mix(in srgb,var(--lime) 7%,var(--surface)),var(--surface));border-radius:19px;padding:16px 18px;margin-bottom:15px}.weekly-review strong{display:block;font-size:12px;margin:4px 0}.weekly-review p{font-size:9px;color:var(--muted);margin:0;line-height:1.45}.review-state{font-size:8px;letter-spacing:1.2px;color:var(--lime);padding:7px 9px;border:1px solid color-mix(in srgb,var(--lime) 30%,transparent);border-radius:99px}.week-strip button.generated:after{content:'AI';display:block;font-size:6px;color:var(--lime);margin-top:3px}.week-strip button.generated.active:after{color:#17310f}
+
+/* Completed Strava workouts */
+.strava-sync-state{font-size:9px;color:var(--muted);margin-top:13px}.day-row.completed{border-color:color-mix(in srgb,var(--lime) 48%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--lime) 9%,var(--surface2)),var(--surface2))}.day-row.completed .sport-icon,.day-row.completed .day-load span,.day-row.completed .day-load b{color:var(--lime)}
