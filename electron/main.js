@@ -106,7 +106,7 @@ async function checkForUpdates() {
   try { await autoUpdater.checkForUpdates(); } catch (error) { sendUpdateStatus('error', { message: error?.message || 'Update failed' }); } finally { updateCheckStarted = false; }
 }
 function createWindow() {
-  mainWindow = new BrowserWindow({ width: 1480, height: 940, minWidth: 1120, minHeight: 720, backgroundColor: '#07110f', icon: path.join(__dirname, '..', 'assets', 'veyvo.ico'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#07110f', symbolColor: '#dfffee', height: 42 }, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
+  mainWindow = new BrowserWindow({ width: 1480, height: 940, minWidth: 1120, minHeight: 720, backgroundColor: '#071222', icon: path.join(__dirname, '..', 'assets', 'veyvo.ico'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#071222', symbolColor: '#dfffee', height: 42 }, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
   mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.once('did-finish-load', () => setTimeout(checkForUpdates, 5000));
