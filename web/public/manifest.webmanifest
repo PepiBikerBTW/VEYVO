@@ -1,1 +1,17 @@
-{"name":"VEYVO — běžecký coach","short_name":"VEYVO","start_url":"/","scope":"/","display":"standalone","background_color":"#091726","theme_color":"#091726","icons":[{"src":"/veyvo-icon.png","sizes":"512x512","type":"image/png","purpose":"any"}]}
+{
+  "name": "VEYVO — běžecký coach",
+  "short_name": "VEYVO",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#091726",
+  "theme_color": "#091726",
+  "icons": [
+    {
+      "src": "/veyvo-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
