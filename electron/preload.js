@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('veyvo', {
+  openMobile: () => ipcRenderer.invoke('open-mobile'),
   aiStatus: () => ipcRenderer.invoke('ai-status'),
   saveAi: settings => ipcRenderer.invoke('ai-save',settings),
   disconnectAi: () => ipcRenderer.invoke('ai-disconnect'),

@@ -269,3 +269,7 @@ window.addEventListener('focus', refreshCalendar);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCalendar(); });
 
 initializeAi();
+
+// Explicit migration to the shared web account; never export provider credentials.
+document.getElementById('exportMobileRuns')?.addEventListener('click',()=>{const blob=new Blob([JSON.stringify({runHistory:state.runHistory||[],profile:state.profile},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='veyvo-behy.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+document.getElementById('openMobileVeyvo')?.addEventListener('click',()=>window.veyvo.openMobile?.());

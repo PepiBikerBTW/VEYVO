@@ -41,3 +41,13 @@ Dosavadní deset týdnů dlouhý program stále začíná 7. 9. 2026. Jeho star�
 ## Testování
 
 `npm test` ověřuje výpočty výkonů a kalendáře, datový kontrakt OpenAI, chybové odpovědi, validaci plánů a ukládání nastavení. `npm run test:ui` spustí izolovaná skrytá Electron okna a ověří čas, šifrování, připojení, importy, konverzaci, adaptaci i zachování dat při chybě. API odpovědi jsou v testech simulované; testy nepotřebují skutečný klíč ani nečerpají kredit.
+
+## 0.3.0 — VEYVO na iPhonu
+
+Soukromý web: https://veyvo-coach-pepa.j-kozisek.chatgpt.site
+
+Na iPhonu otevři v Safari a zvol Sdílet → Přidat na plochu. Stejný ChatGPT účet na webu v telefonu a počítači sdílí běhy, profil, chat a plány. V Nastavení webu vlož vlastní NVIDIA API klíč; model Nemotron je přednastavený. Testovací endpoint NVIDIA má poskytovatelem řízené limity a podmínky.
+
+Windows Nastavení → Obecné nabízí otevření webu a export historie do JSON. Soubor importuj v Nastavení webu. Windows aplikace dál uchovává původní lokální data; pro další průběžnou synchronizaci používej web na obou zařízeních. Přímé propojení Stravy ve webu zatím není; již importované aktivity lze přenést exportem.
+
+Webová implementace a její testy jsou ve `web/`. Ověřeno sestavení, typy, doménové testy, skutečné lokální D1 ukládání a oddělení uživatelů. NVIDIA testována s mock odpověďmi, bez živého klíče. WebMCP rozhraní je volitelné a nebylo ověřeno v podporovaném prohlížeči.

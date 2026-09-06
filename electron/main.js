@@ -161,3 +161,5 @@ ipcMain.handle('strava-disconnect', () => { closeOauthServer(); const file = str
 app.whenReady().then(() => { configureUpdater(); createWindow(); });
 app.on('window-all-closed', () => { closeOauthServer(); if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+
+ipcMain.handle('open-mobile', () => shell.openExternal('https://veyvo-coach-pepa.j-kozisek.chatgpt.site'));
