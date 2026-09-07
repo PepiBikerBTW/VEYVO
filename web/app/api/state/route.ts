@@ -1,11 +1,11 @@
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '../../chatgpt-auth';
 import { db } from '@/lib/db';
-import { defaultData, localTime, runInput, profileInput, nvidia, planMessages, parsePlan, chatMessages, monday } from '@/lib/domain.mjs';
+import { mergeDesktop, defaultData, localTime, runInput, profileInput, nvidia, planMessages, parsePlan, chatMessages, monday } from '@/lib/domain.mjs';
 export const dynamic='force-dynamic';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function account(userId:string){const database=db();await database.prepare('INSERT OR IGNORE INTO accounts(user_id,data) VALUES(?,?)').bind(userId,JSON.stringify(defaultData())).run();return await database.prepare('SELECT * FROM accounts WHERE user_id=?').bind(userId).first<any>();}
-const view=(row:any)=>({...JSON.parse(row.data),revision:row.revision,configured:!!row.secret});
+const view=(row:any)=>({accountId:row.user_id,currentDate:localTime(JSON.parse(row.data).timeZone).date,...JSON.parse(row.data),revision:row.revision,configured:!!row.secret});
 async function crypt(value:string,userId:string,decrypt=false){
  const secret=(env as unknown as {KEY_ENCRYPTION_SECRET?:string}).KEY_ENCRYPTION_SECRET;
  if(!secret)throw Error('Server zatím nemá nastavené šifrování API klíče.');
@@ -26,7 +26,8 @@ export async function POST(request:Request){
  if(body.revision!==row.revision)return json({error:'Data byla změněna na jiném zařízení. Obnovili jsme je; akci zopakuj.'},409);
  let secret=row.secret;
  const action=body.action;
- if(action==='run'){
+ if(action==='desktopSync'){const merged=mergeDesktop(data,body.snapshot);if(JSON.stringify(merged)===row.data)return json(view(row));Object.assign(data,merged);
+ }else if(action==='run'){
  const run=runInput(body.run,today);if(data.runs.some((r:any)=>r.id===run.id))return json(view(row));
  if(data.runs.length>=2000)throw Error('Historie už má 2000 běhů.');data.runs.push(run);
  }else if(action==='deleteRun'){if(typeof body.id!=='string')throw Error('Neplatný běh.');data.runs=data.runs.filter((r:any)=>r.id!==body.id);
@@ -37,6 +38,7 @@ export async function POST(request:Request){
  const runs=incoming.map((r:any)=>runInput(r,today));
  for(const run of runs)if(!data.runs.some((r:any)=>r.id===run.id||(r.date===run.date&&Math.abs(r.distance-run.distance)<0.15&&Math.abs(r.movingSeconds-run.movingSeconds)<60)))data.runs.push(run);
  if(data.runs.length>2000)throw Error('Historie by překročila 2000 běhů.');if(source.profile)data.profile=profileInput(source.profile);
+ }else if(action==='clearChat'){data.chat=[];
  }else if(action==='disconnect'){secret=null;data.consent=false;data.automatic=false;
  }else if(['connect','chat','plan','autoPlan'].includes(action)){
  if(action==='connect'&&(typeof body.key!=='string'||!/^nvapi-[A-Za-z0-9_-]{20,250}$/.test(body.key.trim())||body.consent!==true))throw Error('Vlož celý NVIDIA API klíč a potvrď souhlas.');

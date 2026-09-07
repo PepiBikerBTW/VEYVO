@@ -5,6 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+const cloud=require('./cloud').createCloud();
 const { createAiClient } = require('./ai');
 const { createSettingsStore } = require('./ai-settings');
 let aiStore;
@@ -19,8 +20,9 @@ function trustedAiSender(event) {
 function aiHandler(channel,handler) {
   ipcMain.handle(channel,async(event,payload)=>{trustedAiSender(event);return handler(payload);});
 }
-aiHandler('ai-status',()=>getAiStore().status());
+aiHandler('ai-status',async()=>cloud.enabled()?cloudAiStatus(await cloud.request()):getAiStore().status());
 aiHandler('ai-save',async input=>{
+  if(cloud.enabled()){let data=await cloud.request();if(input.apiKey?.trim())data=await cloud.request({action:'connect',revision:data.revision,key:input.apiKey,consent:input.consent});data=await cloud.request({action:'profile',revision:data.revision,profile:data.profile,timeZone:data.timeZone,automatic:input.automatic});return cloudAiStatus(data);}
   if(aiSaving)throw Error('Ověření připojení už probíhá.');
   aiSaving=true;
   const revision=aiSettingsRevision;
@@ -32,13 +34,15 @@ aiHandler('ai-save',async input=>{
     const status=getAiStore().write(settings);aiSettingsRevision++;return status;
   }finally{aiSaving=false;}
 });
-aiHandler('ai-disconnect',()=>{aiSettingsRevision++;return getAiStore().disconnect();});
+aiHandler('ai-disconnect',async()=>{aiSettingsRevision++;if(cloud.enabled()){const d=await cloud.request();return cloudAiStatus(await cloud.request({action:'disconnect',revision:d.revision}));}return getAiStore().disconnect();});
 aiHandler('ai-chat',async input=>{
+  if(cloud.enabled()){const d=await cloud.request(),result=await cloud.request({action:'chat',revision:d.revision,message:input.messages?.at(-1)?.content});return {text:result.chat.at(-1).content,model:result.model};}
   const revision=aiSettingsRevision,result=await ai.chat(input);
   if(revision!==aiSettingsRevision)throw Error('AI připojení bylo během požadavku změněno.');
   return result;
 });
 aiHandler('ai-plan',async input=>{
+  if(cloud.enabled()){const d=await cloud.request(),result=await cloud.request({action:input.automatic?'autoPlan':'plan',revision:d.revision});const plan=Object.values(result.plans).sort((a,b)=>b.week.localeCompare(a.week))[0];if(!plan)throw Error('Plán ještě není vytvořený.');const rows=require('./ai').rowsFromPlan(plan);return {...plan,source:'nvidia',targetWeek:input.targetWeek,rows,rules:{lockedDays:[],completedKm:result.runs.filter(r=>plan.dates.includes(r.date)).reduce((sum,r)=>sum+r.distance,0)}};}
   if(input?.automatic&&!getAiStore().read()?.automatic)throw Error('Automatické plánování je vypnuté.');
   const revision=aiSettingsRevision,result=await ai.plan(input);
   if(revision!==aiSettingsRevision)throw Error('AI připojení bylo během požadavku změněno.');
@@ -163,3 +167,11 @@ app.on('window-all-closed', () => { closeOauthServer(); if (process.platform !==
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
 ipcMain.handle('open-mobile', () => shell.openExternal('https://veyvo-coach-pepa.j-kozisek.chatgpt.site'));
+
+function cloudAiStatus(data){return {configured:data.configured,automatic:data.automatic,model:data.model,cloud:true};}
+aiHandler('cloud-status',()=>cloud.status());
+aiHandler('cloud-connect',()=>cloud.connect());
+aiHandler('cloud-disconnect',()=>cloud.disconnect());
+aiHandler('cloud-sync',async snapshot=>{if(!cloud.enabled())throw Error('Synchronizace není připojená.');const d=await cloud.request();if(snapshot.accountId&&snapshot.accountId!==d.accountId)throw Error('Je přihlášen jiný účet. Odpoj synchronizaci a připoj původní účet.');return cloud.request({action:'desktopSync',revision:d.revision,snapshot});});
+
+aiHandler('cloud-clear-chat',async()=>{if(!cloud.enabled())throw Error('Cloud není připojený.');const d=await cloud.request();return cloud.request({action:'clearChat',revision:d.revision});});

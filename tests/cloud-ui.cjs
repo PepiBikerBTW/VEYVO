@@ -1,0 +1,23 @@
+const {app,BrowserWindow,ipcMain}=require('electron');const path=require('path');let win,data,domain,delay=0;
+app.commandLine.appendSwitch('disable-gpu');
+const execute=code=>win.webContents.executeJavaScript('(async()=>{'+code+'})()');
+const check=async(code,message)=>{if(!await execute('return '+code))throw Error(message);};
+app.whenReady().then(async()=>{try{
+ domain=await import('../web/lib/domain.mjs');data={...domain.defaultData(),accountId:'test-account',currentDate:domain.localTime().date,revision:0,configured:true};
+ ipcMain.handle('app-version',()=>app.getVersion());ipcMain.handle('strava-status',()=>({connected:false}));ipcMain.handle('ai-status',()=>({configured:true,automatic:false,model:domain.MODEL,cloud:true}));ipcMain.handle('cloud-status',()=>({enabled:true,connected:true,data}));
+ ipcMain.handle('cloud-sync',async(e,snapshot)=>{if(delay)await new Promise(r=>setTimeout(r,delay));data={...data,...domain.mergeDesktop(data,snapshot),revision:data.revision+1};return data;});
+ win=new BrowserWindow({show:false,webPreferences:{partition:'cloud-test-'+Date.now(),offscreen:true,backgroundThrottling:false,preload:path.join(__dirname,'../electron/preload.js'),contextIsolation:true,nodeIntegration:false}});
+ await win.loadFile(path.join(__dirname,'../src/index.html'));
+ await execute('await checkCloud(); await cloudPending;');
+ await check("cloudSyncEnabled&&state.cloudAccountId==='test-account'",'Account is linked');
+ await execute("state.runHistory.push({id:'local',date:'2026-09-01',distance:5,movingSeconds:1800});await syncCloud();");
+ if(!data.runs.some(r=>r.id==='local'))throw Error('Local run did not reach cloud');
+ data.runs.push({...data.runs[0],id:'phone'});await execute('await syncCloud();');await check("state.runHistory.some(r=>r.id==='phone')",'Phone run did not reach Windows');
+ data.runs=data.runs.filter(r=>r.id!=='phone');await execute('await syncCloud();');await check("!state.runHistory.some(r=>r.id==='phone')",'Deleted phone run resurrected');
+ delay=150;await execute("const pending=syncCloud();state.runHistory.push({id:'during',date:'2026-09-02',distance:3,movingSeconds:1200});await pending;await syncCloud();");
+ if(!data.runs.some(r=>r.id==='during'))throw Error('Run created during transfer was lost');
+ data.chat=[{role:'assistant',content:'Zpráva z telefonu'}];await execute('await syncCloud();');await check("state.chatHistory[0].content==='Zpráva z telefonu'",'Chat not mirrored');
+ await check("$('#cloudStatus').textContent.includes('Synchronizováno')",'Missing success feedback');
+ console.log('Cloud UI passed: link, Windows-to-phone, phone-to-Windows, deletion, concurrent local run, shared chat');app.exit(0);
+ }catch(error){console.error(error);app.exit(1);}});
+setTimeout(()=>{console.error('Cloud UI timeout');app.exit(1)},20000);

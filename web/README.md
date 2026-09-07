@@ -13,3 +13,7 @@ Windows history can be exported from desktop Settings and imported here. This is
 The optional WebMCP add-run tool is feature-detected and uses the same API action. No supported WebMCP browser validation context was available; its browser contract remains unverified. No browser visual QA was requested/performed.
 
 PWA uses a manifest and network-only service worker with an offline notice. It deliberately does not cache private responses or queue offline mutations. An internet connection is required. Hosted access is owner-only.
+
+## Windows synchronization (0.3.1)
+
+The Windows app now connects directly through its isolated persistent Chromium session to the same authenticated API. `desktopSync` performs a three-way merge of runs/profile against the last acknowledged baseline. The first connection deduplicates run history and imports chat if the cloud chat is empty. Server chat and plans are authoritative; Windows AI actions use the same NVIDIA account and endpoints. The prior explicit-migration-only limitation above applies to 0.3.0 only. Desktop UI integration tests use a mocked transport; actual user sign-in must be completed in the app.

@@ -20,7 +20,7 @@ function aiContext(){
   return {language:state.language,planStart:state.planStart,profile:state.profile,
     runHistory:state.runHistory.slice(-200),weekPlans:state.weekPlans};
 }
-function aiWeek(){return VeyvoTraining.targetWeek(PLAN_START);}
+function aiWeek(){return aiStatus.cloud?1:VeyvoTraining.targetWeek(PLAN_START);}
 function aiInputKey(week){return JSON.stringify([week,aiContext().profile,aiContext().runHistory,state.planStart,state.language,aiStatus.model]);}
 function openAiSettings(){
   $$('[data-settings-view]').forEach(tab=>tab.classList.toggle('active',tab.dataset.settingsView==='ai'));
@@ -29,12 +29,16 @@ function openAiSettings(){
 }
 function renderAiSettings(){
   if(!aiSettingsBusy && aiSaveState==='idle' && aiStatus.configured && !$('#aiKey').value)setAiSaveState('saved','Klíč je uložený. AI coach je připravený.');
-  $('#aiModel').value=aiStatus.model;
+  $('#aiModel').value=aiStatus.model;$('#aiModel').readOnly=!!aiStatus.cloud;
+  $('.ai-settings h3').textContent=aiStatus.cloud?'NVIDIA · společný účet':'OpenAI';
+  $('.ai-settings > .ai-help').textContent=aiStatus.cloud?'NVIDIA API klíč je společný s webem a na serveru uložený šifrovaně. Testovací API má limity podle podmínek NVIDIA.':'Použij vlastní OpenAI API klíč. API má samostatné účtování. Klíč chrání šifrování Windows a zůstává v tomto počítači.';
+  $('#aiConsent').nextElementSibling.textContent='Souhlasím s odesíláním zpráv, cíle, plánu a běžecké historie včetně poznámek do '+(aiStatus.cloud?'NVIDIA':'OpenAI')+' pro odpovědi a tvorbu plánu.';
+  $('#aiAutomatic').nextElementSibling.textContent='Automaticky aktualizovat plán po běhu a při změně týdne. Funguje při otevřené aplikaci a používá API podle podmínek poskytovatele.';
   $('#aiAutomatic').checked=aiStatus.configured?aiStatus.automatic:true;
   $('#aiConsent').checked=aiStatus.configured;
-  $('#aiConnectionState').textContent=aiStatus.configured?`Připojeno ✓ · ${aiStatus.model}`:'OpenAI není připojené';
+  $('#aiConnectionState').textContent=aiStatus.configured?`Připojeno ✓ · ${aiStatus.model}`:(aiStatus.cloud?'NVIDIA není připojená':'OpenAI není připojené');
   $('#aiDisconnect').hidden=!aiStatus.configured;
-  $('#aiKey').placeholder=aiStatus.configured?'Klíč je uložený · prázdné pole ho zachová':'sk-…';
+  $('#aiKey').placeholder=aiStatus.configured?'Klíč je uložený · prázdné pole ho zachová':(aiStatus.cloud?'nvapi-…':'sk-…');
   $('#goalDistance').value=state.profile.goalDistanceKm;
   $('#goalTime').value=state.profile.targetSeconds?VeyvoTraining.pace(state.profile.targetSeconds):'';
   $$('[data-running-day]').forEach(input=>input.checked=state.profile.days.includes(+input.dataset.runningDay));
@@ -48,8 +52,8 @@ function renderAiPlanStatus(){
     : 'Pro skutečný AI plán připoj OpenAI v nastavení.');
   $('#weeklyReviewTitle').textContent=aiPlanBusy?'AI připravuje tréninky':meta?`AI plán pro ${meta.targetWeek}. týden`:'Plán podle tvých skutečných výkonů';
   $('#weeklyReviewText').textContent=meta?meta.explanation:'Zapiš nebo importuj běhy s časem a vzdáleností. AI podle nich zvolí délky, tempa a regeneraci.';
-  $('#weeklyReviewState').textContent=aiPlanBusy?'PRACUJE':meta?'OPENAI':'ČEKÁ';
-  $('#coachConnection').textContent=aiChatBusy?'AI přemýšlí…':aiStatus.configured?`OpenAI · ${aiStatus.model}`:'Připoj OpenAI v nastavení';
+  $('#weeklyReviewState').textContent=aiPlanBusy?'PRACUJE':meta?(aiStatus.cloud?'NVIDIA':'OPENAI'):'ČEKÁ';
+  $('#coachConnection').textContent=aiChatBusy?'AI přemýšlí…':aiStatus.configured?`${aiStatus.cloud?'NVIDIA':'OpenAI'} · ${aiStatus.model}`:'Připoj OpenAI v nastavení';
 }
 function scheduleAiPlanning(){
   clearTimeout(aiTimer);
@@ -57,6 +61,7 @@ function scheduleAiPlanning(){
 }
 async function generateAiPlan(manual=true){
   if(aiPlanBusy)return;
+  if(aiStatus.cloud){try{await window.flushCloudSync?.();}catch(error){aiPlanError=aiSaveError(error);renderAiPlanStatus();return;}}
   if(!aiStatus.configured){if(manual)openAiSettings();return;}
   if(!manual&&!aiStatus.automatic)return;
   const week=aiWeek();
@@ -84,7 +89,7 @@ async function generateAiPlan(manual=true){
     state.aiPlans[String(week)]={...result,rows};
     state.aiPlanInputs[String(week)]=key;
     state.week=week;save();renderPlan();refreshTimeContext();
-    toast(`OpenAI připravilo plán pro ${week}. týden`);
+    toast(`AI připravila plán pro ${week}. týden`);
   }catch(error){if(generation===aiGeneration)aiPlanError=error.message||'AI plán se nepodařilo vytvořit. Dosavadní plán zůstává uložený.';}
   finally{aiPlanBusy=false;renderAiPlanStatus();}
 }
@@ -100,6 +105,7 @@ function renderChatHistory(){
 }
 async function sendCoachMessage(text){
   text=text.trim();if(!text||aiChatBusy)return;
+  if(aiStatus.cloud){try{await window.flushCloudSync?.();}catch(error){toast(aiSaveError(error));return;}}
   if(text.length>6000){toast('Zpráva může mít nejvýše 6000 znaků.');return;}
   if(!aiStatus.configured){addChatMessage('assistant','Pro skutečný rozhovor s AI připoj OpenAI v Nastavení → AI trenér.');return;}
   const generation=aiGeneration;
@@ -130,13 +136,13 @@ async function initializeAi(){
     aiSettingsBusy=true;
     const controls=['#aiSave','#aiKey','#aiModel','#aiAutomatic','#aiConsent','#aiDisconnect'];
     controls.forEach(selector=>$(selector).disabled=true);
-    setAiSaveState('saving','Ověřuji klíč a připojení k OpenAI. Může to trvat až minutu…');
+    setAiSaveState('saving','Ověřuji klíč a připojení k AI. Může to trvat až minutu…');
     $('#aiSettingsResult').scrollIntoView({block:'nearest'});
     try{
       aiStatus=await window.veyvo.saveAi({apiKey:$('#aiKey').value,model:$('#aiModel').value,automatic:$('#aiAutomatic').checked,consent:$('#aiConsent').checked});
       aiGeneration++;state.aiLastAttempt=null;save();$('#aiKey').value='';
-      setAiSaveState('saved','Uloženo ✓ Připojení k OpenAI je ověřené. Můžeš otevřít VEYVO Coach.');
-      renderAiSettings();renderAiPlanStatus();scheduleAiPlanning();toast('Uloženo ✓ OpenAI je připojené');
+      setAiSaveState('saved','Uloženo ✓ Připojení k AI je ověřené. Můžeš otevřít VEYVO Coach.');
+      renderAiSettings();renderAiPlanStatus();scheduleAiPlanning();toast('Uloženo ✓ AI je připojená');
     }catch(error){
       setAiSaveState('error','Neuloženo: '+aiSaveError(error));
       $('#aiSettingsResult').scrollIntoView({block:'nearest'});
@@ -154,7 +160,7 @@ async function initializeAi(){
       save();renderPlan();$('#runnerProfileResult').textContent='Běžecký profil uložen ✓';scheduleAiPlanning();
     }catch(error){$('#runnerProfileResult').textContent=aiSaveError(error);}
   });
-  $('#clearChat').addEventListener('click',()=>{if(aiChatBusy)return;state.chatHistory=[];save();renderChatHistory();});
+  $('#clearChat').addEventListener('click',async()=>{if(aiChatBusy)return;try{if(aiStatus.cloud)await window.veyvo.cloudClearChat();state.chatHistory=[];save();renderChatHistory();}catch(e){toast(aiSaveError(e));}});
   try{if(window.veyvo?.aiStatus)aiStatus=await window.veyvo.aiStatus();}
   catch(error){setAiSaveState('error',aiSaveError(error));}
   renderAiSettings();renderAiPlanStatus();scheduleAiPlanning();

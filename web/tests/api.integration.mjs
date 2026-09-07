@@ -15,4 +15,10 @@ const imported=await req(id,{action:'import',revision:again.data.revision,data:{
 assert.equal((await req(id,{action:'chat',revision:imported.data.revision,message:'Ahoj'})).status,400);
 console.log('API passed: authentication, owner isolation, persistence, stale revision, CSRF, validation, import deduplication, missing key');
 
+const snapshot={accountId:id,runs:imported.data.runs,profile:imported.data.profile,baseline:{runs:structuredClone(imported.data.runs),profile:imported.data.profile}};
+const noop=await req(id,{action:'desktopSync',revision:imported.data.revision,snapshot});assert.equal(noop.status,200);assert.equal(noop.data.revision,imported.data.revision);
+const withRun=structuredClone(snapshot);withRun.runs.push({...withRun.runs[0],id:'desktop-second',date:'2026-09-02'});
+const synced=await req(id,{action:'desktopSync',revision:noop.data.revision,snapshot:withRun});assert.equal(synced.status,200);assert.equal(synced.data.runs.length,2);
+assert.equal((await req()).data.runs.length,2);
+console.log('Desktop API passed: authenticated merge, persistence, no-op revision stability');
 assert.equal((await req(id,body,'https://evil.example')).status,403);

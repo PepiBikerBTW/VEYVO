@@ -1,6 +1,6 @@
 const GITHUB_OWNER = 'PepiBikerBTW';
 const GITHUB_REPO = 'VEYVO';
-const PLAN_START = new Date(2026, 8, 7);
+let PLAN_START = new Date(2026, 8, 7);
 const defaultState = { theme: 'dark', language: 'cs', loggedRuns: 0, week: 1, planStart: '2026-09-07', profile: {goalDistanceKm:5,targetSeconds:1200,days:[1,2,4,6]} };
 let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || {...defaultState};
 if (!state.planStart) { state = { ...state, week: 1, planStart: defaultState.planStart }; }
@@ -18,7 +18,7 @@ localStorage.setItem('veyvo-state', JSON.stringify(state));
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
-function save() { localStorage.setItem('veyvo-state', JSON.stringify(state)); }
+function save() { localStorage.setItem('veyvo-state', JSON.stringify(state)); window.scheduleCloudSync?.(); }
 function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2800); }
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
@@ -103,7 +103,7 @@ function renderPlan(){
   $('#planHard').textContent=meta?getWeekPlan(state.week).filter(row=>['Tempo','Intervaly'].includes(row[1])).length:'—';
   $('#planRest').textContent=meta?getWeekPlan(state.week).filter(row=>['Volno','Regenerace'].includes(row[1])).length:'—';
   $('#planLoad').textContent=total===null?'—':formatKm(total);
-  $('#planOrigin').textContent=meta?'OPENAI':'ČEKÁ NA AI';
+  $('#planOrigin').textContent=meta?(aiStatus.cloud?'NVIDIA':'OPENAI'):'ČEKÁ NA AI';
   $('#planSummary').textContent='10 týdnů · až '+state.profile.days.length+' běžeckých dnů týdně · začátek '+PLAN_START.toLocaleDateString('cs-CZ');
   $('#planGoalChip').textContent='CÍL · '+state.profile.goalDistanceKm+' KM'+(state.profile.targetSeconds?' · '+VeyvoTraining.pace(state.profile.targetSeconds):'');
   $$('#weekStrip button').forEach(b=>b.addEventListener('click',()=>{state.week=+b.dataset.week;save();renderPlan();toast(`Zobrazen týden ${state.week}`);setTimeout(()=>applyLanguage())}));

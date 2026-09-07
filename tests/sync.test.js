@@ -1,0 +1,3 @@
+const test=require('node:test'),assert=require('node:assert/strict');const {rebaseRuns}=require('../src/sync-context');
+test('sync preserves a local run added while the server request was pending',()=>{const old={id:'old'},phone={id:'phone'},added={id:'new'};assert.deepEqual(rebaseRuns([old,phone],[old],[old,added]),[old,phone,added]);});
+test('sync keeps remote deletions and replays only new local changes',()=>{const old={id:'old',distance:5},other={id:'other'};assert.deepEqual(rebaseRuns([other],[old,other],[old,other]),[other]);assert.deepEqual(rebaseRuns([old,other],[old,other],[old]),[old]);});

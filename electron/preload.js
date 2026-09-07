@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('veyvo', {
+  cloudClearChat: () => ipcRenderer.invoke('cloud-clear-chat'),
+  cloudStatus: () => ipcRenderer.invoke('cloud-status'),
+  cloudConnect: () => ipcRenderer.invoke('cloud-connect'),
+  cloudDisconnect: () => ipcRenderer.invoke('cloud-disconnect'),
+  cloudSync: snapshot => ipcRenderer.invoke('cloud-sync',snapshot),
   openMobile: () => ipcRenderer.invoke('open-mobile'),
   aiStatus: () => ipcRenderer.invoke('ai-status'),
   saveAi: settings => ipcRenderer.invoke('ai-save',settings),

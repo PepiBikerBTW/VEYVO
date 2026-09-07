@@ -51,3 +51,11 @@ Na iPhonu otevři v Safari a zvol Sdílet → Přidat na plochu. Stejný ChatGPT
 Windows Nastavení → Obecné nabízí otevření webu a export historie do JSON. Soubor importuj v Nastavení webu. Windows aplikace dál uchovává původní lokální data; pro další průběžnou synchronizaci používej web na obou zařízeních. Přímé propojení Stravy ve webu zatím není; již importované aktivity lze přenést exportem.
 
 Webová implementace a její testy jsou ve `web/`. Ověřeno sestavení, typy, doménové testy, skutečné lokální D1 ukládání a oddělení uživatelů. NVIDIA testována s mock odpověďmi, bez živého klíče. WebMCP rozhraní je volitelné a nebylo ověřeno v podporovaném prohlížeči.
+
+## 0.3.1 — Přímá synchronizace Windows ↔ iPhone
+
+Ve Windows Nastavení → Obecné → Synchronizace s iPhonem klikni na Přihlásit a propojit. Přihlas se stejným ChatGPT účtem jako na webu. Windows rozhraní i import Stravy zůstávají zachované. Běhy a profil se slučují obousměrně automaticky (po změně, při návratu do okna a každých 15 sekund). AI chat i plán používají společný NVIDIA účet na serveru. Export není pro synchronizaci potřeba.
+
+Lokální změny při výpadku internetu zůstávají uložené a odešlou se při dalším spojení. Současné změny odlišných běhů se sloučí; konflikt stejného záznamu nebo profilu se ohlásí, aniž by se lokální verze zahodila. První propojení zachová kopii původních lokálních dat v cloudLocalBackup. Změna přihlášeného účtu je odmítnuta, aby se nepromíchala data. Přihlašovací okno používá oddělenou trvalou Chromium session bez Node/preload oprávnění; autentizační cookies nejsou předávány lokálnímu rendereru.
+
+Ověřeno 18 doménových testů desktopu, 6 webových testů a Electron UI testy včetně přenosu oběma směry, odstranění běhu, záznamu během přenosu a sdíleného chatu. Přihlášení skutečného uživatele a živé NVIDIA odpovědi vyžadují dokončení přihlášení a jeho vlastní API klíč; tyto kroky nejsou součástí mock testů.
