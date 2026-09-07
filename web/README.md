@@ -17,3 +17,5 @@ PWA uses a manifest and network-only service worker with an offline notice. It d
 ## Windows synchronization (0.3.1)
 
 The Windows app now connects directly through its isolated persistent Chromium session to the same authenticated API. `desktopSync` performs a three-way merge of runs/profile against the last acknowledged baseline. The first connection deduplicates run history and imports chat if the cloud chat is empty. Server chat and plans are authoritative; Windows AI actions use the same NVIDIA account and endpoints. The prior explicit-migration-only limitation above applies to 0.3.0 only. Desktop UI integration tests use a mocked transport; actual user sign-in must be completed in the app.
+
+Packaging note: local Wrangler integration state must live outside `dist/` (use an absolute `--persist-to` path under `web/.wrangler/`). Stop the local test server before packaging, and verify the archive contains no `.wrangler/` directories or SQLite test files. Tests must never add their local data to a production archive.
