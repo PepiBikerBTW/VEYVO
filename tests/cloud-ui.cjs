@@ -18,6 +18,8 @@ app.whenReady().then(async()=>{try{
  if(!data.runs.some(r=>r.id==='during'))throw Error('Run created during transfer was lost');
  data.chat=[{role:'assistant',content:'Zpráva z telefonu'}];await execute('await syncCloud();');await check("state.chatHistory[0].content==='Zpráva z telefonu'",'Chat not mirrored');
  await check("$('#cloudStatus').textContent.includes('Synchronizováno')",'Missing success feedback');
+ await execute("aiStatus={configured:false,automatic:false,model:'nvidia/nemotron-3.5-lightning-30b-a3b',cloud:true,needsLogin:true};renderAiSettings();");
+ await check("$('#aiModel').value==='nvidia/nemotron-3.5-lightning-30b-a3b' && $('#aiModel').readOnly && $('#aiKey').closest('label').hidden && $('#aiSave').textContent.includes('Přihlásit')",'Unlinked account must show Nemotron and login, not OpenAI');
  console.log('Cloud UI passed: link, Windows-to-phone, phone-to-Windows, deletion, concurrent local run, shared chat');app.exit(0);
  }catch(error){console.error(error);app.exit(1);}});
 setTimeout(()=>{console.error('Cloud UI timeout');app.exit(1)},20000);

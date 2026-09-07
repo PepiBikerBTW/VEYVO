@@ -20,7 +20,8 @@ function trustedAiSender(event) {
 function aiHandler(channel,handler) {
   ipcMain.handle(channel,async(event,payload)=>{trustedAiSender(event);return handler(payload);});
 }
-aiHandler('ai-status',async()=>cloud.enabled()?cloudAiStatus(await cloud.request()):getAiStore().status());
+aiHandler('ai-status',async()=>{if(cloud.enabled()){try{return cloudAiStatus(await cloud.request());}catch{return pendingCloudStatus();}}const local=getAiStore().status();return local.configured?local:pendingCloudStatus();});
+function pendingCloudStatus(){return {configured:false,automatic:false,model:'nvidia/nemotron-3.5-lightning-30b-a3b',cloud:true,needsLogin:true};}
 aiHandler('ai-save',async input=>{
   if(cloud.enabled()){let data=await cloud.request();if(input.apiKey?.trim())data=await cloud.request({action:'connect',revision:data.revision,key:input.apiKey,consent:input.consent});data=await cloud.request({action:'profile',revision:data.revision,profile:data.profile,timeZone:data.timeZone,automatic:input.automatic});return cloudAiStatus(data);}
   if(aiSaving)throw Error('Ověření připojení už probíhá.');

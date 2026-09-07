@@ -1,5 +1,5 @@
 // AI requests stay in Electron's main process; the renderer never receives a saved API key.
-let aiStatus={configured:false,automatic:false,model:'gpt-5.4-mini'};
+let aiStatus={configured:false,automatic:false,model:'nvidia/nemotron-3.5-lightning-30b-a3b',cloud:true,needsLogin:true};
 let aiPlanBusy=false,aiChatBusy=false,aiSettingsBusy=false,aiGeneration=0,aiTimer;
 let aiPlanError='';
 let aiSaveState='idle';
@@ -28,6 +28,11 @@ function openAiSettings(){
   renderAiSettings();$('#settingsDialog').showModal();
 }
 function renderAiSettings(){
+  const needsLogin=aiStatus.needsLogin===true;
+  if(!needsLogin&&$('#aiSave').dataset.needsLogin==='true')setAiSaveState('idle');
+  $('#aiSave').dataset.needsLogin=String(needsLogin);
+  $('#aiKey').closest('label').hidden=needsLogin;$('#aiConsent').closest('label').hidden=needsLogin;$('#aiAutomatic').closest('label').hidden=needsLogin;
+  if(needsLogin){$('#aiSave').textContent='Přihlásit a propojit NVIDIA';$('#aiSettingsResult').textContent='Pro Nemotron se přihlas stejným účtem jako na webu. NVIDIA klíč potom zadáš jednou pro telefon i Windows.';$('#aiSettingsResult').hidden=false;}
   if(!aiSettingsBusy && aiSaveState==='idle' && aiStatus.configured && !$('#aiKey').value)setAiSaveState('saved','Klíč je uložený. AI coach je připravený.');
   $('#aiModel').value=aiStatus.model;$('#aiModel').readOnly=!!aiStatus.cloud;
   $('.ai-settings h3').textContent=aiStatus.cloud?'NVIDIA · společný účet':'OpenAI';
@@ -36,7 +41,7 @@ function renderAiSettings(){
   $('#aiAutomatic').nextElementSibling.textContent='Automaticky aktualizovat plán po běhu a při změně týdne. Funguje při otevřené aplikaci a používá API podle podmínek poskytovatele.';
   $('#aiAutomatic').checked=aiStatus.configured?aiStatus.automatic:true;
   $('#aiConsent').checked=aiStatus.configured;
-  $('#aiConnectionState').textContent=aiStatus.configured?`Připojeno ✓ · ${aiStatus.model}`:(aiStatus.cloud?'NVIDIA není připojená':'OpenAI není připojené');
+  $('#aiConnectionState').textContent=aiStatus.configured?`Připojeno ✓ · ${aiStatus.model}`:(needsLogin?'Nemotron · čeká na přihlášení':aiStatus.cloud?'NVIDIA není připojená':'OpenAI není připojené');
   $('#aiDisconnect').hidden=!aiStatus.configured;
   $('#aiKey').placeholder=aiStatus.configured?'Klíč je uložený · prázdné pole ho zachová':(aiStatus.cloud?'nvapi-…':'sk-…');
   $('#goalDistance').value=state.profile.goalDistanceKm;
@@ -49,11 +54,11 @@ function renderAiPlanStatus(){
   $('#generateAiPlan').disabled=aiPlanBusy;
   $('#aiPlanStatus').textContent=aiPlanBusy?'AI vyhodnocuje výkony a připravuje plán…':aiPlanError || (aiStatus.configured
     ? (aiStatus.automatic?'Automatická adaptace je zapnutá.':'Automatická adaptace je vypnutá; plán vytvoříš tlačítkem.')
-    : 'Pro skutečný AI plán připoj OpenAI v nastavení.');
+    : 'Pro AI plán připoj zvoleného AI trenéra v nastavení.');
   $('#weeklyReviewTitle').textContent=aiPlanBusy?'AI připravuje tréninky':meta?`AI plán pro ${meta.targetWeek}. týden`:'Plán podle tvých skutečných výkonů';
   $('#weeklyReviewText').textContent=meta?meta.explanation:'Zapiš nebo importuj běhy s časem a vzdáleností. AI podle nich zvolí délky, tempa a regeneraci.';
   $('#weeklyReviewState').textContent=aiPlanBusy?'PRACUJE':meta?(aiStatus.cloud?'NVIDIA':'OPENAI'):'ČEKÁ';
-  $('#coachConnection').textContent=aiChatBusy?'AI přemýšlí…':aiStatus.configured?`${aiStatus.cloud?'NVIDIA':'OpenAI'} · ${aiStatus.model}`:'Připoj OpenAI v nastavení';
+  $('#coachConnection').textContent=aiChatBusy?'AI přemýšlí…':aiStatus.configured?`${aiStatus.cloud?'NVIDIA':'OpenAI'} · ${aiStatus.model}`:'Připoj AI trenéra v nastavení';
 }
 function scheduleAiPlanning(){
   clearTimeout(aiTimer);
@@ -133,6 +138,7 @@ async function initializeAi(){
   }
   $('#aiSave').addEventListener('click',async()=>{
     if(aiSettingsBusy)return;
+    if(aiStatus.needsLogin){$('#cloudConnect').click();setAiSaveState('idle','Dokonči přihlášení v otevřeném okně. Po propojení se zde zobrazí NVIDIA klíč.');renderAiSettings();return;}
     aiSettingsBusy=true;
     const controls=['#aiSave','#aiKey','#aiModel','#aiAutomatic','#aiConsent','#aiDisconnect'];
     controls.forEach(selector=>$(selector).disabled=true);
