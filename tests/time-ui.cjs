@@ -11,17 +11,22 @@ app.whenReady().then(async()=>{
       expect(getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag'&&bounds.top===0&&bounds.height===42,'Top strip is draggable');
       expect(document.elementFromPoint(10,10)===drag&&document.elementFromPoint(innerWidth-10,10)!==drag,'Window controls remain clear');
       expect(/^\\d{2}:\\d{2}$/.test(document.querySelector('#localClock').textContent),'Clock rendered');
-      expect(!document.querySelector('#baselineIntro').hidden,'First-run prompt visible');
-      document.querySelector('#startBaseline').click();
-      expect(document.querySelector('#logDistance').readOnly&&document.querySelector('#logDistance').value==='5','5 km baseline selected');
-      document.querySelector('#logTime').value='30:00';
+      expect(!document.querySelector('#historyIntro').hidden,'Continue-journey prompt visible');
+      expect(!document.querySelector('#baselineIntro'),'Old 5 km onboarding removed');
+      expect(document.querySelectorAll('.calendar-day').length===7,'Weekly calendar rendered');
+      document.querySelector('#quickLog').click();
+      expect(!document.querySelector('#logDistance').readOnly&&document.querySelector('#logDistance').value==='','Open run log without forced 5 km');
+      document.querySelector('#logDistance').value='3.31';
+      document.querySelector('#logTime').value='25:37';
       document.querySelector('#effort').value='6';
       document.querySelector('#saveLog').click();
-      expect(state.runHistory.length===1&&state.runHistory[0].type==='Test 5 km','Baseline saved');
+      expect(state.runHistory.length===1&&state.runHistory[0].type==='Běh','Run saved');
       expect(!document.querySelector('#nextRunIntro').hidden,'Next run shown');
+      expect(document.querySelector('#planPage').classList.contains('active'),'Plan page opens after first run');
+      expect(document.querySelector('.calendar-day.run'),'Completed run appears in calendar');
       expect(document.querySelector('#progressCount').textContent==='1','Progress updated');
       expect(!document.querySelector('#exportRuns').hidden,'Local export available');
-      return 'UI passed: drag strip, clock, 5 km onboarding, next run, progress, export';
+      return 'UI passed: drag strip, clock, calendar, open run log, next run, progress, export';
     })()`);
     console.log(result);app.exit(0);
   }catch(error){console.error(error);app.exit(1);}

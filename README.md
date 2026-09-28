@@ -1,6 +1,6 @@
 # VEYVO
 
-VEYVO is a Windows running journal. Record a best effort 5 km run when you start. Enter the finish time and perceived effort (1–10); the app suggests a conservative next easy run using fixed rules. You can also record other runs, view progress, and set available running days.
+VEYVO is a Windows running journal. Add your existing runs or import training history, then log each run's distance, time, and perceived effort (1–10). The app suggests a conservative next easy run using fixed rules. The weekly calendar shows recorded sessions, milestones, unavailable days, and the next suggested run. Future workouts are set after you log the result and how you felt.
 
 ## Windows
 
