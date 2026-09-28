@@ -1,7 +1,7 @@
 {
   "name": "veyvo",
-  "version": "0.3.2",
-  "description": "VEYVO — Your adaptive running coach",
+  "version": "0.3.3",
+  "description": "VEYVO — Windows running journal",
   "main": "electron/main.js",
   "author": "VEYVO",
   "license": "UNLICENSED",
@@ -10,8 +10,8 @@
     "dev": "electron .",
     "build": "electron-builder --win nsis portable",
     "pack": "electron-builder --dir",
-    "test": "node --test tests/*.test.js",
-    "test:ui": "electron tests/time-ui.cjs && electron tests/ai-ui.cjs && electron tests/cloud-ui.cjs"
+    "test": "node --test tests/next-run.test.js tests/time-context.test.js",
+    "test:ui": "electron tests/time-ui.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",

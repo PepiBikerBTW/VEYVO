@@ -36,20 +36,12 @@
 .day-row.today{border-color:color-mix(in srgb,var(--violet) 68%,transparent);box-shadow:inset 4px 0 var(--violet),0 8px 30px color-mix(in srgb,var(--violet) 8%,transparent)}
 .weekly-review{border-color:color-mix(in srgb,var(--orange) 32%,var(--line));background:linear-gradient(100deg,color-mix(in srgb,var(--lime) 9%,var(--surface)),color-mix(in srgb,var(--violet) 7%,var(--surface)))}
 
-/* AI connection, adaptive plan, and conversation */
-.ai-plan-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
-.ai-status,.ai-help{font-size:12px;line-height:1.6;color:var(--muted);overflow-wrap:anywhere}
-.ai-status{min-height:20px}.ai-settings label{display:block;margin:14px 0 8px;font-size:12px;color:var(--muted)}
-.ai-settings label>input:not([type=checkbox]){display:block;width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);margin-top:6px;font:inherit}
-.ai-settings .ai-check{display:flex;align-items:flex-start;gap:10px;line-height:1.5}.ai-check input{width:16px;flex:none;margin:3px 0}
-.ai-profile{border-top:1px solid var(--line);margin-top:25px;padding-top:12px}
 .running-days{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}.running-days label{cursor:pointer;margin:0;padding:9px;border:1px solid var(--line);border-radius:10px;display:flex;gap:5px;align-items:center}.running-days input{width:14px;margin:0}
-.chat-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 20px 15px}.chat-footer .disclaimer{padding:0;margin:0}
-.message p{white-space:pre-wrap;overflow-wrap:anywhere}.weekly-review p,.day-workout span{overflow-wrap:anywhere}
 button:disabled{opacity:.55;cursor:wait}.settings-dialog{max-height:85vh;overflow-y:auto}
 [hidden]{display:none!important}
+.window-drag-region{position:fixed;top:0;left:0;right:140px;height:42px;z-index:30;-webkit-app-region:drag;user-select:none}
+.baseline-intro{margin-bottom:20px;padding:24px;border-color:color-mix(in srgb,var(--lime) 40%,var(--line));background:linear-gradient(110deg,color-mix(in srgb,var(--lime) 9%,var(--surface)),var(--surface))}.baseline-intro h2{margin:8px 0;font-size:22px}.baseline-intro p{max-width:700px;color:var(--muted);font-size:12px;line-height:1.6}.baseline-intro .baseline-hint{font-size:10px;margin-bottom:0}
 
-.ai-save-result{margin:12px 0 0;padding:13px 15px;border:1px solid var(--line);border-radius:12px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
-.ai-save-result[data-state="saved"]{color:var(--text);border-color:#39ad80;background:rgba(57,173,128,.12)}
-.ai-save-result[data-state="error"]{color:var(--text);border-color:#ee7777;background:rgba(238,119,119,.12)}
-#aiSave[data-save-state="saved"]{background:#39ad80;color:#071222;box-shadow:none}
+
+/* Recovery check-in */
+.recovery-action{margin-top:20px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--line));background:color-mix(in srgb,var(--orange) 10%,var(--surface));color:var(--orange);border-radius:12px;padding:10px 14px;font:inherit;font-size:10px;font-weight:750;cursor:pointer}.recovery-action:hover{background:color-mix(in srgb,var(--orange) 18%,var(--surface))}.readiness .chip.green{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--orange)}
