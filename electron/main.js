@@ -4,6 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
+const { fetchSharedHistory } = require('./shared-history');
+const SHARE_URL = /^https:\/\/chatgpt\.com\/share\/[0-9a-f-]{36}\/?$/i;
 
 const STRAVA_CLIENT_ID = '275720';
 let mainWindow;
@@ -15,6 +17,14 @@ function send(channel, payload) {
 }
 function sendUpdateStatus(type, data = {}) { send('updater-status', { type, ...data }); }
 function stravaFile() { return path.join(app.getPath('userData'), 'strava.secure'); }
+function sharedHistoryFile() { return path.join(app.getPath('userData'), 'shared-history-url.txt'); }
+function savedSharedHistoryUrl() { try { return fs.readFileSync(sharedHistoryFile(),'utf8').trim(); } catch { return ''; } }
+function saveSharedHistoryUrl(url) {
+  if (typeof url !== 'string' || !SHARE_URL.test(url.trim())) throw new Error('Vlož platný odkaz na sdílený chat.');
+  fs.writeFileSync(sharedHistoryFile(),url.trim(),'utf8');
+  return url.trim();
+}
+function clearSharedHistoryUrl() { const file=sharedHistoryFile(); if(fs.existsSync(file))fs.unlinkSync(file); return true; }
 function saveStrava(data) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows šifrování není dostupné.');
   fs.writeFileSync(stravaFile(), safeStorage.encryptString(JSON.stringify(data)));
@@ -118,6 +128,10 @@ ipcMain.handle('strava-status', () => publicStravaStatus());
 ipcMain.handle('strava-connect', (_, secret) => beginStravaOauth(secret));
 ipcMain.handle('strava-sync', () => syncStrava());
 ipcMain.handle('strava-disconnect', () => { closeOauthServer(); const file = stravaFile(); if (fs.existsSync(file)) fs.unlinkSync(file); return { connected: false }; });
+ipcMain.handle('shared-history-fetch', (_, url) => fetchSharedHistory(url));
+ipcMain.handle('shared-history-url', () => savedSharedHistoryUrl());
+ipcMain.handle('shared-history-save-url', (_, url) => saveSharedHistoryUrl(url));
+ipcMain.handle('shared-history-clear-url', () => clearSharedHistoryUrl());
 app.whenReady().then(() => { configureUpdater(); createWindow(); });
 app.on('window-all-closed', () => { closeOauthServer(); if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

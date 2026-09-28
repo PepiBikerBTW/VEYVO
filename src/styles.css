@@ -45,3 +45,5 @@ button:disabled{opacity:.55;cursor:wait}.settings-dialog{max-height:85vh;overflo
 
 /* Recovery check-in */
 .recovery-action{margin-top:20px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--line));background:color-mix(in srgb,var(--orange) 10%,var(--surface));color:var(--orange);border-radius:12px;padding:10px 14px;font:inherit;font-size:10px;font-weight:750;cursor:pointer}.recovery-action:hover{background:color-mix(in srgb,var(--orange) 18%,var(--surface))}.readiness .chip.green{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--orange)}
+
+#sharedChatPreview{margin:12px 0;font-size:11px;line-height:1.5;color:var(--muted)}#sharedChatPreview p{margin:5px 0}#sharedChatPreview b{color:var(--text)}#sharedChatUrl{width:100%;min-width:0}#progressMilestones p{padding:8px 0;border-bottom:1px solid var(--line);color:var(--muted)}

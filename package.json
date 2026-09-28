@@ -1,6 +1,6 @@
 {
   "name": "veyvo",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "VEYVO — Windows running journal",
   "main": "electron/main.js",
   "author": "VEYVO",
@@ -10,7 +10,7 @@
     "dev": "electron .",
     "build": "electron-builder --win nsis portable",
     "pack": "electron-builder --dir",
-    "test": "node --test tests/next-run.test.js tests/time-context.test.js",
+    "test": "node --test tests/next-run.test.js tests/time-context.test.js tests/shared-history.test.js",
     "test:ui": "electron tests/time-ui.cjs"
   },
   "devDependencies": {
@@ -46,14 +46,17 @@
             "x64"
           ]
         }
-      ],
-      "artifactName": "VEYVO-${version}-${arch}.${ext}"
+      ]
     },
     "nsis": {
+      "artifactName": "VEYVO-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "VEYVO"
+    },
+    "portable": {
+      "artifactName": "VEYVO-Portable-${version}-${arch}.${ext}"
     },
     "publish": [
       {
