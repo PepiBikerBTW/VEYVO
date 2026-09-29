@@ -40,7 +40,7 @@
       <header class="topbar"><div><span class="eyebrow" id="pageEyebrow">VEYVO</span><h1 id="pageTitle">Přehled</h1></div><div class="top-actions"><time id="localClock" class="date-pill"></time><button class="icon-btn" id="resetDemo" title="Smazat místní data">↻</button><button class="primary small" id="quickLog">＋ Zapsat běh</button></div></header>
 
       <section class="page active" id="homePage">
-        <article class="panel baseline-intro" id="historyIntro" hidden><span class="eyebrow">TVÁ BĚŽECKÁ CESTA</span><h2>Pokračuj tam, kde jsi skončil</h2><p>Načti své dosavadní tréninky ze sdíleného chatu nebo zapiš poslední běh. Kalendář pak ukáže historii a další krok.</p><button type="button" class="primary" id="openHistoryImport">Načíst historii</button></article>
+        <article class="panel baseline-intro" id="historyIntro" hidden><span class="eyebrow">TVÁ BĚŽECKÁ CESTA</span><h2>Pokračuj tam, kde jsi skončil</h2><p>Zapiš svůj poslední běh nebo připoj Stravu. Kalendář pak ukáže historii a další krok.</p><button type="button" class="primary" id="openFirstLog">Zapsat běh</button></article>
         <div class="readiness hero-card">
           <div class="readiness-copy"><span class="chip green" id="recoveryScoreLabel">REGENERACE · DOPLŇ CHECK-IN</span><h2>Každý běh<br><em>se počítá.</em></h2><p id="recoverySummary">Zapiš spánek a pocitovou únavu pro vlastní přehled.</p><div class="metric-row"><div><span>SPÁNEK</span><b id="recoverySleep">—</b></div><div><span>ÚNAVA</span><b id="recoveryFatigue">—</b></div><div><span>ZÁTĚŽ</span><b id="recoveryLoad">—</b></div></div><button type="button" class="recovery-action" id="openRecovery">＋ Zapsat regeneraci</button></div>
           <div class="orb-wrap"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="score-orb"><span>↗</span><small>BĚH</small></div></div>
@@ -61,7 +61,7 @@
       </section>
 
       <section class="page" id="progressPage">
-        <div class="page-intro"><div><span class="chip green">TVÉ BĚHY</span><h2>Každý běh zanechá stopu.</h2><p>Skutečné záznamy z aplikace, Stravy a tvého sdíleného chatu.</p></div></div>
+        <div class="page-intro"><div><span class="chip green">TVÉ BĚHY</span><h2>Každý běh zanechá stopu.</h2><p>Skutečné záznamy z aplikace a Stravy.</p></div></div>
         <div class="stats-grid"><div class="stat-card"><span>BĚHY S ÚPLNÝMI ÚDAJI</span><b id="progressCount">0</b></div><div class="stat-card"><span>ZNÁMÁ VZDÁLENOST</span><b id="progressDistance">0 km</b></div><div class="stat-card"><span>POSLEDNÍCH 7 DNŮ</span><b id="progressWeek">0 km</b></div><div class="stat-card"><span>NEJRYCHLEJŠÍCH 5 KM</span><b id="progressBest5k">—</b></div></div>
         <article class="panel"><h3>Historie běhů</h3><div id="progressRuns"></div></article>
         <article class="panel"><h3>Milníky cesty k 5 km pod 20 minut</h3><div id="progressMilestones"></div></article>
@@ -91,25 +91,16 @@
 
   <dialog id="settingsDialog" class="settings-dialog"><form method="dialog" id="settingsForm"><div class="modal-head"><div><span class="eyebrow">VEYVO</span><h2>Nastavení</h2></div><button value="cancel" class="close">×</button></div>
     <div class="settings-tabs"><button type="button" class="active" data-settings-view="general">Obecné</button><button type="button" data-settings-view="connections">Propojení</button></div>
-    <section class="settings-section" data-settings-panel="general">
-      <h3>Tvůj běžecký cíl</h3><div class="form-grid"><label>Vzdálenost cíle (km)<input id="goalDistance" type="number" min="1" max="100" step="0.1" value="5"></label><label>Cílový čas (volitelné)<input id="goalTime" placeholder="mm:ss nebo h:mm:ss" value="20:00"></label></div>
-      <p>Které dny můžeš běhat? Vyber 1 až 6 dnů.</p>
-      <div class="running-days"><label><input type="checkbox" data-running-day="0"><span>PO</span></label><label><input type="checkbox" data-running-day="1"><span>ÚT</span></label><label><input type="checkbox" data-running-day="2"><span>ST</span></label><label><input type="checkbox" data-running-day="3"><span>ČT</span></label><label><input type="checkbox" data-running-day="4"><span>PÁ</span></label><label><input type="checkbox" data-running-day="5"><span>SO</span></label><label><input type="checkbox" data-running-day="6"><span>NE</span></label></div>
-      <button type="button" class="secondary-button" id="saveRunnerProfile">Uložit běžecký profil</button>
-      <p id="runnerProfileResult" role="status" data-live-text></p>
-    </section>
+    <section class="settings-section update-card" data-settings-panel="general"><div class="update-heading"><div class="update-symbol">↻</div><div><span class="eyebrow">AKTUALIZACE APLIKACE</span><h3>Měj VEYVO aktuální</h3><p>Nová verze se stáhne přímo v aplikaci.</p></div></div><div class="update-version-row"><div><span>NAINSTALOVANÁ VERZE</span><strong id="installedVersion">Načítám…</strong></div><span class="update-state-badge" id="updateStateBadge">PŘIPRAVENO</span></div><div class="update-status" id="updateResult" data-state="idle" role="status"><span class="update-status-icon" id="updateStatusIcon">✓</span><div><strong id="updateStatusTitle">Připraveno ke kontrole</strong><p id="updateStatusDetail">Zjisti, jestli je dostupná novější verze.</p></div></div><div class="update-progress" id="updateProgress" hidden><span id="updateProgressBar"></span></div><button type="button" class="primary update-action" id="checkUpdates">Zkontrolovat aktualizace <span>→</span></button></section>
     <section class="settings-section language-section" data-settings-panel="general"><div class="settings-section-head"><div class="language-mark">文</div><div><h3>Jazyk aplikace</h3><p>Změna se projeví okamžitě a zůstane uložená.</p></div></div><label class="language-select-label">Jazyk<select id="appLanguage"><option value="cs">Čeština</option><option value="en">English</option></select></label></section>
-    <section class="settings-section update-simple" data-settings-panel="general"><div class="settings-section-head"><div class="github-mark">GH</div><div><h3>Aktualizace</h3><p>Zdroj: PepiBikerBTW/VEYVO · GitHub Releases</p></div></div><button type="button" class="primary update-only-button" id="checkUpdates">Zkontrolovat aktualizace</button><div class="update-progress" id="updateProgress" hidden><span id="updateProgressBar"></span></div><div class="update-result" id="updateResult" hidden></div></section>
-    <section class="settings-section" data-settings-panel="general"><h3>Data běhů</h3><p>Ulož si kopii běhů a běžeckého profilu jako soubor JSON.</p><button type="button" class="secondary-button" id="exportRuns">Exportovat běhy</button></section>
     <section class="settings-section compact" data-settings-panel="general"><span class="eyebrow">VZHLED</span><div class="appearance-options"><button type="button" data-set-theme="light">☀ Světlý</button><button type="button" data-set-theme="dark">☾ Tmavý</button></div></section>
 
     <section class="settings-section settings-connections" data-settings-panel="connections" hidden><div class="settings-section-head"><div class="strava-mark mini">▲</div><div><h3>Strava</h3><p>Import běhů, tempa, tepu, splitů a převýšení.</p></div><span class="connection-status" id="settingsStravaStatus">NEPŘIPOJENO</span></div><button type="button" class="strava-button settings-strava-button" id="settingsOpenStrava">Nastavit propojení Stravy</button></section>
-    <section class="settings-section settings-connections" data-settings-panel="connections" hidden><h3>Historie ze sdíleného ChatGPT chatu</h3><p>Vlož odkaz na svůj sdílený tréninkový chat. VEYVO načte ověřené běhy a milníky. Odkaz zůstane jen v tomto počítači.</p><label>Odkaz na chat<input id="sharedChatUrl" type="url" placeholder="https://chatgpt.com/share/…"></label><button type="button" class="secondary-button" id="previewSharedChat">Načíst náhled</button><button type="button" class="secondary-button" id="clearSharedChat">Zrušit kontrolu odkazu</button><div id="sharedChatPreview" role="status"></div><button type="button" class="primary" id="applySharedChat" hidden>Importovat historii</button><p class="privacy-note">Sdílený odkaz je veřejný pro každého, kdo ho má. ChatGPT nemusí odkaz aktualizovat po nových zprávách. Pro nové výsledky klikni znovu na „Načíst náhled“ nebo zapiš běh ve VEYVO.</p></section>  </form></dialog>
+  </form></dialog>
   <div class="toast" id="toast"></div>
   <script src="time-context.js"></script>
   <script src="training-context.js"></script>
   <script src="calendar-context.js"></script>
   <script src="journal.js"></script>
-  <script src="export.js"></script>
 </body>
 </html>

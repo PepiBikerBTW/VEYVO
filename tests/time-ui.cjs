@@ -25,8 +25,10 @@ app.whenReady().then(async()=>{
       expect(document.querySelector('#planPage').classList.contains('active'),'Plan page opens after first run');
       expect(document.querySelector('.calendar-day.run'),'Completed run appears in calendar');
       expect(document.querySelector('#progressCount').textContent==='1','Progress updated');
-      expect(!document.querySelector('#exportRuns').hidden,'Local export available');
-      return 'UI passed: drag strip, clock, calendar, open run log, next run, progress, export';
+      expect(!document.querySelector('#exportRuns'),'Data export card removed');
+      expect(!document.querySelector('#sharedChatUrl'),'Chat import card removed');
+      expect(!document.querySelector('#goalDistance'),'Goal settings card removed');
+      return 'UI passed: drag strip, clock, calendar, run log, progress, simple settings';
     })()`);
     console.log(result);app.exit(0);
   }catch(error){console.error(error);app.exit(1);}

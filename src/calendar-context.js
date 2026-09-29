@@ -6,7 +6,7 @@
   function entriesForDay(date,{runs=[],milestones=[],availableDays=[],nextRun=null,plannedDescription=null,today=dateKey(new Date())}={}){
     const day=new Date(date+'T12:00:00');
     const completed=runs.filter(run=>String(run.date).slice(0,10)===date).map(run=>({kind:'run',title:run.type||'Běh',detail:`${run.distance} km · ${run.time||''}`.trim()}));
-    const notes=milestones.filter(item=>item.date===date).map(item=>({kind:'milestone',title:item.label,detail:'Ze sdílené historie'}));
+    const notes=milestones.filter(item=>item.date===date).map(item=>({kind:'milestone',title:item.label,detail:'Dřívější záznam'}));
     if(completed.length||notes.length)return [...completed,...notes];
     if(nextRun?.kind==='easy'&&nextRun.date===date)return [{kind:'planned',title:'Lehký běh',detail:plannedDescription||`${nextRun.distanceKm} km lehce · po doběhu zapiš výsledek`}];
     if(date<today)return [{kind:'unlogged',title:'Bez záznamu',detail:'Pokud jsi běžel, můžeš běh doplnit'}];
