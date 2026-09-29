@@ -59,6 +59,8 @@
     }
     const reference=baseline&&Number(baseline.distance)>=4.95&&Number(baseline.distance)<=5.05?Number(baseline.movingSeconds)/5:seconds/distance;
     if(!Number.isFinite(reference)||reference<=0)return null;
+    if(today&&parseDate(today)&&dayDifference(parseDate(today),date)>=10)
+      return {kind:'easy',date:nextDate,distanceKm:3.5,paceFast:null,paceSlow:null,returnAfterBreak:true,durationMin:25,durationMax:30};
     return {kind:'easy',date:nextDate,distanceKm:Math.round(Math.min(5,Math.max(2,distance*(tired?.6:.8)))*2)/2,
       paceFast:Math.round(reference*1.2/5)*5,paceSlow:Math.round(reference*1.45/5)*5};
   }

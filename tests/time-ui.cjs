@@ -28,6 +28,11 @@ app.whenReady().then(async()=>{
       expect(!document.querySelector('#exportRuns'),'Data export card removed');
       expect(!document.querySelector('#sharedChatUrl'),'Chat import card removed');
       expect(!document.querySelector('#goalDistance'),'Goal settings card removed');
+      const oldDate=new Date();oldDate.setDate(oldDate.getDate()-14);
+      state.runHistory=[{date:VeyvoTraining.dateKey(oldDate)+'T12:00:00',type:'Běh',distance:6.17,movingSeconds:2570,effort:null}];
+      renderAll();
+      expect(document.querySelector('#nextRunTitle').textContent.includes('25–30 min lehký návrat'),'Return run shown after a two-week gap');
+      expect(document.querySelector('#nextRunText').textContent.includes('náročnost 2–3/10'),'Easy effort shown for return run');
       state.stravaConnected=true;renderStravaState();
       expect(document.querySelector('#settingsOpenStrava').textContent==='Připojeno','Connected Strava button label');
       state.stravaConnected=false;renderStravaState();

@@ -1,9 +1,9 @@
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const defaultProfile = {goalDistanceKm:5,targetSeconds:1200,days:[0,1,3,5,6]};
+const defaultProfile = {goalDistanceKm:5,targetSeconds:1200,days:[1,2,4,6]};
 let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || {};
 state.profile ||= {...defaultProfile};
-state.profile.days=[0,1,3,5,6];
+state.profile.days=[1,2,4,6];
 delete state.sharedChatUrl;
 state.runHistory ||= [];
 state.milestones ||= [];
@@ -32,7 +32,7 @@ function renderCalendar(){
  const suggested=nextRun();
  const latestRun=[...state.runHistory].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
  const latestWorkout=[...state.milestones].reverse().find(entry=>/intervaly|běh\s+\d/i.test(entry.label));
- const plannedDescription=latestWorkout&&(!latestRun||latestWorkout.date>String(latestRun.date).slice(0,10))?'20–30 min podle pocitu · po doběhu zapiš výsledek':null;
+ const plannedDescription=suggested?.returnAfterBreak?'25–30 min lehce · podle dechu, bez rychlého konce':latestWorkout&&(!latestRun||latestWorkout.date>String(latestRun.date).slice(0,10))?'20–30 min podle pocitu · po doběhu zapiš výsledek':null;
  $('#calendarDays').innerHTML=days.map(date=>{
   const day=new Date(date+'T12:00:00'),weekday=new Intl.DateTimeFormat('cs-CZ',{weekday:'long'}).format(day);
   const entries=VeyvoCalendar.entriesForDay(date,{runs:state.runHistory,milestones:state.milestones,availableDays:state.profile.days,nextRun:suggested,plannedDescription,today});
@@ -63,8 +63,8 @@ function renderAll(){
  $('#planStatusTitle').textContent=count?count+' zaznamenaných běhů':'Zatím žádný běh';
  $('#planStatusText').textContent=laterRecordedWorkout?'Poslední trénink v historii: '+latestWorkout.date:count?'Poslední běh: '+String(runs[count-1].date).slice(0,10):'Zapiš první běh a sleduj svůj pokrok.';
  $('#planGoalChip').textContent='CÍL · '+state.profile.goalDistanceKm+' KM';
- if(next){$('#nextRunTitle').textContent=next.kind==='rest'?'Nejdřív odpočívej':laterRecordedWorkout?next.date+' · 20–30 min lehký návrat':next.date+' · Lehký běh '+next.distanceKm+' km';$('#nextRunText').textContent=next.kind==='rest'?'Běh byl maximálně náročný. Pokud máš bolesti nebo se necítíš dobře, další běh odlož.':laterRecordedWorkout?'Poslední známý trénink byly intervaly '+latestWorkout.date+'. Po pauze běž pohodlně tak, abys mohl mluvit. Pokud se vrátí bolest, běh ukonči. Po doběhu zapiš čas, vzdálenost a náročnost.':'Běž tempem, při kterém můžeš mluvit. Pokud jsi stále unavený, běh odlož nebo zkrať.'}
- $('#todayPlanText').textContent=next?'Návrh dalšího běhu':'Zapiš běh a sleduj pokrok';$('#todayWorkout').textContent=next?(next.kind==='rest'?'Odpočinek':laterRecordedWorkout?next.date+' · 20–30 min lehce':next.date+' · lehký běh '+next.distanceKm+' km'):'Tvoje běhy na jednom místě';$('#planPhaseLabel').textContent=count?count+' běhů':'Pokračuj ve své cestě';
+ if(next){$('#nextRunTitle').textContent=next.kind==='rest'?'Nejdřív odpočívej':next.returnAfterBreak?next.date+' · 25–30 min lehký návrat':laterRecordedWorkout?next.date+' · 20–30 min lehký návrat':next.date+' · Lehký běh '+next.distanceKm+' km';$('#nextRunText').textContent=next.kind==='rest'?'Běh byl maximálně náročný. Pokud máš bolesti nebo se necítíš dobře, další běh odlož.':next.returnAfterBreak?'Poslední zaznamenaný běh byl '+String(latestRun.date).slice(0,10)+'. Začni 5 min velmi volně, pak běž pohodlně podle dechu (náročnost 2–3/10). Neřeš tempo, nedávej intervaly ani rychlý závěr. Pokud se ozve koleno nebo tříslo a bolest se zhoršuje, běh ukonči. Po doběhu zapiš čas a pocit; další trénink se upraví podle výsledku.':laterRecordedWorkout?'Poslední známý trénink byly intervaly '+latestWorkout.date+'. Po pauze běž pohodlně tak, abys mohl mluvit. Pokud se vrátí bolest, běh ukonči. Po doběhu zapiš čas, vzdálenost a náročnost.':'Běž tempem, při kterém můžeš mluvit. Pokud jsi stále unavený, běh odlož nebo zkrať.'}
+ $('#todayPlanText').textContent=next?'Návrh dalšího běhu':'Zapiš běh a sleduj pokrok';$('#todayWorkout').textContent=next?(next.kind==='rest'?'Odpočinek':next.returnAfterBreak?next.date+' · 25–30 min lehce':laterRecordedWorkout?next.date+' · 20–30 min lehce':next.date+' · lehký běh '+next.distanceKm+' km'):'Tvoje běhy na jednom místě';$('#planPhaseLabel').textContent=count?count+' běhů':'Pokračuj ve své cestě';
  $('#progressCount').textContent=count;$('#progressDistance').textContent=runs.reduce((sum,r)=>sum+Number(r.distance||0),0).toFixed(1)+' km';
  $('#progressWeek').textContent=runs.filter(r=>new Date(r.date)>=new Date(Date.now()-7*86400000)).reduce((sum,r)=>sum+Number(r.distance||0),0).toFixed(1)+' km';
  const five=runs.filter(r=>r.distance>=4.95&&r.distance<=5.05).map(r=>r.movingSeconds||VeyvoTraining.durationSeconds(r.time)).filter(Boolean);$('#progressBest5k').textContent=five.length?formatDuration(Math.min(...five)):'—';
