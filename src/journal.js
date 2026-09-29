@@ -1,9 +1,9 @@
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const defaultProfile = {goalDistanceKm:5,targetSeconds:1200,days:[1,2,4,6]};
+const defaultProfile = {goalDistanceKm:5,targetSeconds:1200,days:[1,6]};
 let state = JSON.parse(localStorage.getItem('veyvo-state') || 'null') || {};
 state.profile ||= {...defaultProfile};
-state.profile.days=[1,2,4,6];
+state.profile.days=[1,6];
 delete state.sharedChatUrl;
 state.runHistory ||= [];
 state.milestones ||= [];

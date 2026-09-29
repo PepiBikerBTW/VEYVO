@@ -25,10 +25,11 @@ test('a later run refreshes the next suggestion from result and effort',()=>{
 
 test('last Strava run after a two-week gap suggests an easy return',()=>{
   const run={date:'2026-09-15T17:44:51Z',type:'Běh',distance:6.17,movingSeconds:2570,effort:null};
-  const next=nextRunAfterRun(run,[1,2,4,6],'2026-09-29');
-  assert.equal(next.date,'2026-09-30');
+  const next=nextRunAfterRun(run,[1,6],'2026-09-29');
+  assert.equal(next.date,'2026-09-29');
   assert.equal(next.returnAfterBreak,true);
   assert.equal(next.durationMin,25);
   assert.equal(next.durationMax,30);
   assert.equal(next.paceFast,null);
+  assert.equal(nextRunAfterRun(run,[1,6],'2026-09-30').date,'2026-10-04');
 });

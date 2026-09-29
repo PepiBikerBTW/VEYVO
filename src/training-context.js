@@ -24,7 +24,7 @@
     const rounded=Math.round(seconds);
     return `${Math.floor(rounded/60)}:${String(rounded%60).padStart(2,'0')}`;
   }
-  function nextRunAfter5k(run, availableDays=[1,2,4,6], today='') {
+  function nextRunAfter5k(run, availableDays=[1,6], today='') {
     const date=parseDate(String(run?.date||'').slice(0,10));
     const distance=Number(run?.distance),seconds=Number(run?.movingSeconds ?? durationSeconds(run?.time));
     if(!date||distance<4.95||distance>5.05||!Number.isFinite(seconds)||seconds<600||seconds>7200)return null;
@@ -43,7 +43,7 @@
     return {kind:'easy',date:nextDate,distanceKm:tired?2.5:good?3.5:3,
       paceFast:Math.round(racePace*1.2/5)*5,paceSlow:Math.round(racePace*1.45/5)*5};
   }
-  function nextRunAfterRun(run, availableDays=[1,2,4,6], today='', baseline=null) {
+  function nextRunAfterRun(run, availableDays=[1,6], today='', baseline=null) {
     if(run?.type==='Test 5 km')return nextRunAfter5k(run,availableDays,today);
     const date=parseDate(String(run?.date||'').slice(0,10));
     const distance=Number(run?.distance),seconds=Number(run?.movingSeconds ?? durationSeconds(run?.time));
@@ -51,7 +51,9 @@
     const effort=Number(run.effort);
     if(effort>=10)return {kind:'rest',date:null,distanceKm:0,paceFast:null,paceSlow:null};
     const tired=effort>=8,minDays=tired?3:2,daySet=new Set(availableDays);
-    const startOffset=Math.max(minDays,today&&parseDate(today)?dayDifference(parseDate(today),date)+1:0);
+    const daysSinceRun=today&&parseDate(today)?dayDifference(parseDate(today),date):0;
+    const returnAfterBreak=daysSinceRun>=10;
+    const startOffset=Math.max(minDays,daysSinceRun+(returnAfterBreak?0:1));
     let nextDate=null;
     for(let offset=startOffset;offset<=startOffset+7;offset++){
       const candidate=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()+offset));
@@ -59,13 +61,13 @@
     }
     const reference=baseline&&Number(baseline.distance)>=4.95&&Number(baseline.distance)<=5.05?Number(baseline.movingSeconds)/5:seconds/distance;
     if(!Number.isFinite(reference)||reference<=0)return null;
-    if(today&&parseDate(today)&&dayDifference(parseDate(today),date)>=10)
+    if(returnAfterBreak)
       return {kind:'easy',date:nextDate,distanceKm:3.5,paceFast:null,paceSlow:null,returnAfterBreak:true,durationMin:25,durationMax:30};
     return {kind:'easy',date:nextDate,distanceKm:Math.round(Math.min(5,Math.max(2,distance*(tired?.6:.8)))*2)/2,
       paceFast:Math.round(reference*1.2/5)*5,paceSlow:Math.round(reference*1.45/5)*5};
   }
   function normalProfile(profile = {}) {
-    const days=Array.isArray(profile.days)?[...new Set(profile.days)].filter(day=>Number.isInteger(day)&&day>=0&&day<=6).sort():[1,2,4,6];
+    const days=Array.isArray(profile.days)?[...new Set(profile.days)].filter(day=>Number.isInteger(day)&&day>=0&&day<=6).sort():[1,6];
     if(days.length<1 || days.length>6)throw Error('Vyber 1 až 6 běžeckých dnů.');
     const goalDistanceKm=Number(profile.goalDistanceKm ?? 5);
     if(!Number.isFinite(goalDistanceKm)||goalDistanceKm<1||goalDistanceKm>100)throw Error('Cílová vzdálenost musí být 1–100 km.');
