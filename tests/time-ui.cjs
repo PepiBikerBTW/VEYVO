@@ -28,6 +28,10 @@ app.whenReady().then(async()=>{
       expect(!document.querySelector('#exportRuns'),'Data export card removed');
       expect(!document.querySelector('#sharedChatUrl'),'Chat import card removed');
       expect(!document.querySelector('#goalDistance'),'Goal settings card removed');
+      state.stravaConnected=true;renderStravaState();
+      expect(document.querySelector('#settingsOpenStrava').textContent==='Připojeno','Connected Strava button label');
+      state.stravaConnected=false;renderStravaState();
+      expect(document.querySelector('#settingsOpenStrava').textContent==='Nastavit propojení Stravy','Disconnected Strava button label');
       return 'UI passed: drag strip, clock, calendar, run log, progress, simple settings';
     })()`);
     console.log(result);app.exit(0);
