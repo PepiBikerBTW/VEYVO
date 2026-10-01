@@ -10,8 +10,8 @@
     "dev": "electron .",
     "build": "electron-builder --win nsis portable",
     "pack": "electron-builder --dir",
-    "test": "node --test tests/next-run.test.js tests/time-context.test.js tests/calendar.test.js",
-    "test:ui": "electron tests/time-ui.cjs && electron tests/update-ui.cjs"
+    "test": "node --test tests/next-run.test.js tests/time-context.test.js tests/calendar.test.js tests/nutrition.test.js",
+    "test:ui": "electron tests/time-ui.cjs && electron tests/update-ui.cjs && electron tests/nutrition-ui.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",

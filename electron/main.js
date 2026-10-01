@@ -109,7 +109,15 @@ async function checkForUpdates() {
 function createWindow() {
   mainWindow = new BrowserWindow({ width: 1480, height: 940, minWidth: 1120, minHeight: 720, backgroundColor: '#071222', icon: path.join(__dirname, '..', 'assets', 'veyvo.ico'), titleBarStyle: 'hidden', titleBarOverlay: { color: '#071222', symbolColor: '#dfffee', height: 42 }, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
   mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const nutritionSources = new Set([
+    'https://www.nswis.com.au/nswis-news/food-choices-for-the-run-in-to-competition/',
+    'https://www.ausport.gov.au/ais/nutrition/supplements/group_a/sports-foods2/sports-drink/how-and-when-do-i-use-it',
+    'https://health.clevelandclinic.org/what-to-eat-when-youre-training-for-a-marathon'
+  ]);
+  mainWindow.webContents.setWindowOpenHandler(({url}) => {
+    if (nutritionSources.has(url)) shell.openExternal(url).catch(error => console.error('Cannot open nutrition source:', error.message));
+    return { action: 'deny' };
+  });
   mainWindow.webContents.once('did-finish-load', () => setTimeout(checkForUpdates, 5000));
 }
 ipcMain.handle('app-version', () => app.getVersion());

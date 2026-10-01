@@ -18,6 +18,7 @@
         <button class="nav-item active" data-page="home"><span>⌁</span>Přehled</button>
         <button class="nav-item" data-page="plan"><span>◫</span>Můj plán</button>
         <button class="nav-item" data-page="progress"><span>⌁</span>Výkonnost</button>
+      <button class="nav-item" data-page="nutrition" aria-label="Před během" title="Před během"><span aria-hidden="true">▤</span>Před během</button>
       </nav>
       <div class="side-card">
         <div class="pulse-dot"></div><small>BĚŽECKÝ DENÍK</small>
@@ -42,7 +43,7 @@
       <section class="page active" id="homePage">
         <article class="panel baseline-intro" id="historyIntro" hidden><span class="eyebrow">TVÁ BĚŽECKÁ CESTA</span><h2>Pokračuj tam, kde jsi skončil</h2><p>Zapiš svůj poslední běh nebo připoj Stravu. Kalendář pak ukáže historii a další krok.</p><button type="button" class="primary" id="openFirstLog">Zapsat běh</button></article>
         <div class="readiness hero-card">
-          <div class="readiness-copy"><span class="chip green" id="recoveryScoreLabel">REGENERACE · DOPLŇ CHECK-IN</span><h2>Každý běh<br><em>se počítá.</em></h2><p id="recoverySummary">Zapiš spánek a pocitovou únavu pro vlastní přehled.</p><div class="metric-row"><div><span>SPÁNEK</span><b id="recoverySleep">—</b></div><div><span>ÚNAVA</span><b id="recoveryFatigue">—</b></div><div><span>ZÁTĚŽ</span><b id="recoveryLoad">—</b></div></div><button type="button" class="recovery-action" id="openRecovery">＋ Zapsat regeneraci</button></div>
+          <div class="readiness-copy"><span class="chip green" id="recoveryScoreLabel">REGENERACE · DOPLŇ CHECK-IN</span><h2>Dnešní regenerace</h2><p id="recoverySummary">Zapiš spánek a pocitovou únavu pro vlastní přehled.</p><div class="metric-row"><div><span>SPÁNEK</span><b id="recoverySleep">Nezapsáno</b></div><div><span>ÚNAVA</span><b id="recoveryFatigue">Nezapsáno</b></div><div><span>ZÁTĚŽ</span><b id="recoveryLoad">Nezapsáno</b></div></div><button type="button" class="recovery-action" id="openRecovery">＋ Zapsat regeneraci</button></div>
           <div class="orb-wrap"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="score-orb"><span>↗</span><small>BĚH</small></div></div>
         </div>
 
@@ -61,10 +62,10 @@
       </section>
 
       <section class="page" id="progressPage">
-        <div class="page-intro"><div><span class="chip green">TVÉ BĚHY</span><h2>Každý běh zanechá stopu.</h2><p>Skutečné záznamy z aplikace a Stravy.</p></div></div>
-        <div class="stats-grid"><div class="stat-card"><span>BĚHY S ÚPLNÝMI ÚDAJI</span><b id="progressCount">0</b></div><div class="stat-card"><span>ZNÁMÁ VZDÁLENOST</span><b id="progressDistance">0 km</b></div><div class="stat-card"><span>POSLEDNÍCH 7 DNŮ</span><b id="progressWeek">0 km</b></div><div class="stat-card"><span>NEJRYCHLEJŠÍCH 5 KM</span><b id="progressBest5k">—</b></div></div>
-        <article class="panel"><h3>Historie běhů</h3><div id="progressRuns"></div></article>
-        <article class="panel"><h3>Milníky cesty k 5 km pod 20 minut</h3><div id="progressMilestones"></div></article>
+        <div class="page-intro"><div><span class="chip green">TVÉ BĚHY</span><h2>Přehled výkonů</h2><p>Skutečné záznamy z aplikace a Stravy.</p></div></div>
+        <div class="stats-grid"><div class="stat-card"><span>ZAZNAMENANÉ BĚHY</span><b id="progressCount">0</b></div><div class="stat-card"><span>ZNÁMÁ VZDÁLENOST</span><b id="progressDistance">0 km</b></div><div class="stat-card"><span>POSLEDNÍCH 7 DNŮ</span><b id="progressWeek">0 km</b></div><div class="stat-card"><span>NEJRYCHLEJŠÍCH 5 KM</span><b id="progressBest5k">Nezapsáno</b></div></div>
+        <div class="performance-columns"><article class="panel performance-history"><div class="performance-heading"><span class="eyebrow">AKTIVITY</span><h3>Historie běhů</h3></div><div id="progressRuns"></div></article>
+        <article class="panel performance-milestones"><div class="performance-heading"><span class="eyebrow">TVŮJ POKROK</span><h3>Milníky cesty k 5 km pod 20 minut</h3></div><div id="progressMilestones"></div></article></div>
       </section>
 
       <section class="page" id="connectionsPage">
@@ -81,6 +82,29 @@
           <aside class="panel sync-panel"><span class="eyebrow">SYNCHRONIZACE</span><h3>Co se bude dít?</h3><div class="sync-step"><b>01</b><p><strong>Přihlásíš se u Stravy</strong><span>Ty rozhodneš, která oprávnění VEYVO získá.</span></p></div><div class="sync-step"><b>02</b><p><strong>Běhy se načtou</strong><span>Nové aktivity se při spuštění synchronizují.</span></p></div><div class="sync-step"><b>03</b><p><strong>Uvidíš své výsledky</strong><span>Běhy najdeš v přehledu výkonnosti.</span></p></div></aside>
         </div>
       </section>
+
+<section class="page" id="nutritionPage">
+ <div class="page-intro"><div><span class="eyebrow">JÍDLO A PITÍ</span><h2>Před během</h2><p>Vyber trasu, svůj očekávaný čas a čas do startu.</p></div></div>
+ <form class="panel nutrition-controls" id="nutritionForm">
+  <label>Vzdálenost<select id="nutritionDistance"><option value="6">6 km</option><option value="10">10 km</option><option value="21.1">Půlmaraton · 21,1 km</option><option value="42.2">Maraton · 42,2 km</option></select></label>
+  <label>Očekávaný čas běhu (minuty)<input id="nutritionMinutes" type="number" min="10" max="720" step="1" placeholder="Zadej svůj odhad" required aria-describedby="nutritionHint nutritionError"></label>
+  <label>Čas do startu<select id="nutritionTiming"><option value="meal">2–4 hodiny</option><option value="snack">1–2 hodiny</option><option value="soon">Méně než hodina</option></select></label>
+  <p id="nutritionHint">Čas zadej podle svého tempa. Vzdálenost sama nestačí k určení občerstvení.</p>
+ </form>
+ <p id="nutritionError" role="status">Doplň očekávaný čas běhu pro zobrazení doporučení.</p>
+ <div id="nutritionResult" hidden aria-live="polite">
+  <article class="panel nutrition-overview"><span class="eyebrow">PŘÍPRAVA</span><h3 id="nutritionTitle"></h3><p id="nutritionPrep"></p></article>
+  <div class="nutrition-grid">
+   <article class="panel"><h3 id="nutritionMealTitle"></h3><p id="nutritionMealText"></p><ul id="nutritionFoods"></ul><small>Příklady, ne pevný jídelníček. Vyber podle alergií a vlastní snášenlivosti.</small></article>
+   <article class="panel"><h3>Co připravit na trasu</h3><p id="nutritionFuel"></p><p id="nutritionLate" hidden>Pokud jsi před dlouhým během nejedl, samotný nápoj těsně před startem nenahradí předchozí jídlo. Zvaž posunutí startu.</p><p>Připrav dostupné pití podle počasí, pocení a občerstvovacích míst.</p></article>
+  </div>
+ </div>
+ <details class="panel nutrition-sources"><summary>Zdroje a zásady</summary><p>Obecné doporučení pro zdravé dospělé. Jídlo i občerstvení vyzkoušej v tréninku; při zdravotních omezeních plán prober s nutričním terapeutem. Před závodem nezkoušej nové potraviny.</p><p>Podklady ověřeny 1. 10. 2026:</p><ul>
+ <li><a target="_blank" rel="noopener" href="https://www.nswis.com.au/nswis-news/food-choices-for-the-run-in-to-competition/">NSW Institute of Sport: načasování jídla</a></li>
+ <li><a target="_blank" rel="noopener" href="https://www.ausport.gov.au/ais/nutrition/supplements/group_a/sports-foods2/sports-drink/how-and-when-do-i-use-it">Australian Institute of Sport: sacharidy během výkonu</a></li>
+ <li><a target="_blank" rel="noopener" href="https://health.clevelandclinic.org/what-to-eat-when-youre-training-for-a-marathon">Cleveland Clinic: příprava na maraton</a></li>
+ </ul></details>
+</section>
     </main>
   </div>
 
@@ -101,6 +125,8 @@
   <script src="time-context.js"></script>
   <script src="training-context.js"></script>
   <script src="calendar-context.js"></script>
+  <script src="nutrition-context.js"></script>
   <script src="journal.js"></script>
+  <script src="nutrition-ui.js"></script>
 </body>
 </html>
