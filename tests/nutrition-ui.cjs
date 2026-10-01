@@ -33,6 +33,29 @@ app.whenReady().then(async()=>{
     return 'Nutrition and performance UI passed at '+innerWidth;
    })()`));
   }
+  await win.webContents.executeJavaScript(`(()=>{
+   const set=(id,value)=>{const el=document.getElementById(id);el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));};
+   const expect=(ok,msg)=>{if(!ok){console.error(msg);throw Error(msg)}};
+   document.querySelector('[data-page="nutrition"]').click();
+   set('nutritionStart','02:30');expect(document.querySelector('#nutritionTimeline').textContent.includes('předchozí den'),'Timeline handles midnight');
+   set('nutritionMinutes','120');set('nutritionRate','30');set('nutritionServing','25');expect(document.querySelector('#nutritionBudget').textContent.includes('60 g sacharidů celkem, tedy 3 porcí'),'Supplies calculated');
+   set('nutritionRate','90');expect(document.querySelector('#nutritionBudget').textContent.includes('30–60'),'Excessive rate rejected');
+   set('nutritionRate','30');set('nutritionNotes','Toast v 7:00, bez potíží.');
+   document.querySelector('#nutritionChecklist input').click();expect(document.querySelector('#nutritionChecklistStatus').textContent.startsWith('1 z'),'Checklist click works');
+   expect(document.querySelector('#nutritionSaved').textContent.includes('Uloženo'),'Save confirmation');
+  })()`);
+  await new Promise(resolve=>{win.webContents.once('did-finish-load',resolve);win.reload();});
+  await win.webContents.executeJavaScript(`(()=>{
+   const expect=(ok,msg)=>{if(!ok){console.error(msg);throw Error(msg)}};
+   expect(document.querySelector('#nutritionNotes').value==='Toast v 7:00, bez potíží.','Notes restored');
+   expect(document.querySelector('#nutritionStart').value==='02:30','Start restored');
+   expect(document.querySelector('#nutritionChecklist input').checked,'Checklist restored');
+   expect(document.querySelector('#nutritionBudget').textContent.includes('60 g sacharidů'),'Calculation restored');
+   document.querySelector('#nutritionResetChecklist').click();expect(!document.querySelector('#nutritionChecklist input').checked,'Reset button works');
+   expect(document.querySelector('#nutritionNotes').value.includes('Toast'),'Reset preserves notes');
+   document.querySelector('[data-page="nutrition"]').click();
+  })()`);
+  console.log('Advanced nutrition passed: calculation, timeline, persistence, reset');
   app.exit(0);
  }catch(error){console.error(error);app.exit(1)}
 });

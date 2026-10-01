@@ -89,8 +89,10 @@
   <label>Vzdálenost<select id="nutritionDistance"><option value="6">6 km</option><option value="10">10 km</option><option value="21.1">Půlmaraton · 21,1 km</option><option value="42.2">Maraton · 42,2 km</option></select></label>
   <label>Očekávaný čas běhu (minuty)<input id="nutritionMinutes" type="number" min="10" max="720" step="1" placeholder="Zadej svůj odhad" required aria-describedby="nutritionHint nutritionError"></label>
   <label>Čas do startu<select id="nutritionTiming"><option value="meal">2–4 hodiny</option><option value="snack">1–2 hodiny</option><option value="soon">Méně než hodina</option></select></label>
+  <label>Plánovaný čas startu (volitelné)<input id="nutritionStart" type="time"><small>Pro časový rozpis, bez upozornění.</small></label>
   <p id="nutritionHint">Čas zadej podle svého tempa. Vzdálenost sama nestačí k určení občerstvení.</p>
  </form>
+ <p id="nutritionSaved" class="nutrition-save-status" role="status"></p>
  <p id="nutritionError" role="status">Doplň očekávaný čas běhu pro zobrazení doporučení.</p>
  <div id="nutritionResult" hidden aria-live="polite">
   <article class="panel nutrition-overview"><span class="eyebrow">PŘÍPRAVA</span><h3 id="nutritionTitle"></h3><p id="nutritionPrep"></p></article>
@@ -98,6 +100,14 @@
    <article class="panel"><h3 id="nutritionMealTitle"></h3><p id="nutritionMealText"></p><ul id="nutritionFoods"></ul><small>Příklady, ne pevný jídelníček. Vyber podle alergií a vlastní snášenlivosti.</small></article>
    <article class="panel"><h3>Co připravit na trasu</h3><p id="nutritionFuel"></p><p id="nutritionLate" hidden>Pokud jsi před dlouhým během nejedl, samotný nápoj těsně před startem nenahradí předchozí jídlo. Zvaž posunutí startu.</p><p>Připrav dostupné pití podle počasí, pocení a občerstvovacích míst.</p></article>
   </div>
+ </div>
+ <article class="panel" id="nutritionSchedule"><h3>Časový plán přípravy</h3><p>Rozpis počítá zpět od zadaného startu. Aktuální doporučení jídla výše určuje tvoje volba času do startu.</p><ol id="nutritionTimeline"><li>Zadej plánovaný čas startu pro konkrétní časy jídel.</li></ol></article>
+ <article class="panel" id="nutritionCalculator"><h3>Kolik občerstvení připravit</h3><p>Pomůcka pro běh delší než 75 minut. Zadej svůj vyzkoušený cíl a obsah sacharidů z obalu. Výsledek je přepočet, ne doporučená dávka.</p>
+ <div class="nutrition-controls"><label>Tvůj cíl (g sacharidů / hodinu)<input id="nutritionRate" type="number" min="30" max="90" step="1" placeholder="Např. 30"></label><label>Sacharidy v jedné porci (g)<input id="nutritionServing" type="number" min="1" max="100" step="1" placeholder="Podle obalu"></label></div>
+ <p id="nutritionBudget" role="status">Doplň délku běhu a údaje o občerstvení.</p><small>Součet zahrnuje všechny zdroje: gely, nápoj i jídlo. Počet porcí platí jen tehdy, pokud vše pokryješ zvoleným výrobkem. Nad 60 g/h využívej směs sacharidů až po nácviku snášenlivosti.</small></article>
+ <div class="nutrition-grid">
+ <article class="panel"><h3>Kontrola před odchodem</h3><p id="nutritionChecklistStatus" role="status"></p><div id="nutritionChecklist"></div><button type="button" class="recovery-action" id="nutritionResetChecklist">Odškrtnout seznam pro další běh</button></article>
+ <article class="panel"><h3>Vlastní poznámky</h3><label for="nutritionNotes">Co ti sedělo a co příště změnit</label><textarea id="nutritionNotes" maxlength="2000" rows="6" placeholder="Jídlo, čas před startem, pití a pocit při běhu…"></textarea><small>Poznámky a nastavení zůstávají v tomto počítači. Ukládají se automaticky.</small></article>
  </div>
  <details class="panel nutrition-sources"><summary>Zdroje a zásady</summary><p>Obecné doporučení pro zdravé dospělé. Jídlo i občerstvení vyzkoušej v tréninku; při zdravotních omezeních plán prober s nutričním terapeutem. Před závodem nezkoušej nové potraviny.</p><p>Podklady ověřeny 1. 10. 2026:</p><ul>
  <li><a target="_blank" rel="noopener" href="https://www.nswis.com.au/nswis-news/food-choices-for-the-run-in-to-competition/">NSW Institute of Sport: načasování jídla</a></li>

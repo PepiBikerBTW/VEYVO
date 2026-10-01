@@ -17,5 +17,21 @@ function guide(distance,minutes,timing){
  const fuel=minutes<45?'Během výkonu kratšího než 45 minut sacharidy obvykle nejsou potřeba.':minutes<=75?'Při intenzivním běhu 45–75 minut může pomoci malé množství sacharidů. Nejde o povinnost pro každý lehký běh.':minutes<=150?'Pro vytrvalostní běh této délky se běžně používá 30–60 g sacharidů za hodinu. Započítej gely i nápoje a plán nejprve vyzkoušej v tréninku.':'U běhů nad 2,5–3 hodiny lze po nácviku využít až 90 g sacharidů za hodinu ze směsi glukózy a fruktózy. Není to automatický cíl pro začátečníka; množství zvyšuj podle tolerance.';
  return {...profile,meal,fuel,longRun:minutes>75,lateLongRun:minutes>75&&timing==='soon'};
 }
-const api={guide,profiles};if(typeof module==='object'&&module.exports)module.exports=api;else root.VeyvoNutrition=api;
+function timeline(start){
+ if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(start))throw new RangeError('Zadej čas startu.');
+ const [h,m]=start.split(':').map(Number),base=h*60+m;
+ const time=offset=>{const raw=base-offset,value=((raw%1440)+1440)%1440;return String(Math.floor(value/60)).padStart(2,'0')+':'+String(value%60).padStart(2,'0')+(raw<0?' (předchozí den)':'');};
+ return [
+  {time:time(240)+' až '+time(120),title:'Hlavní jídlo',detail:'Vyber jednu variantu jídla níže. Porci přizpůsob vlastní zkušenosti; není potřeba sníst všechny příklady.'},
+  {time:time(120)+' až '+time(60),title:'Volitelná svačina',detail:'Podle hladu a předchozího jídla si dej banán nebo bílé pečivo s džemem. Svačina není další povinné jídlo.'},
+  {time:time(60)+' až '+time(0),title:'Poslední hodina',detail:'Připrav pití, vyzkoušené občerstvení a vybavení. Nedoháněj přípravu velkým jídlem.'},
+  {time:time(0),title:'Start',detail:'Použij občerstvení, které máš vyzkoušené při tréninku.'}
+ ];
+}
+function fuelBudget(minutes,rate,perServing){
+ if(![minutes,rate,perServing].every(Number.isFinite)||minutes<=75||minutes>720||rate<30||rate>90||(minutes<=150&&rate>60)||perServing<1||perServing>100)throw new RangeError('Zkontroluj délku běhu, cíl sacharidů a údaj na obalu.');
+ const grams=Math.round(minutes/60*rate);
+ return {grams,servings:Math.ceil(grams/perServing)};
+}
+const api={guide,profiles,timeline,fuelBudget};if(typeof module==='object'&&module.exports)module.exports=api;else root.VeyvoNutrition=api;
 })(globalThis);
