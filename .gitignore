@@ -5,3 +5,7 @@ dist/
 .env
 .env.*
 !.env.example
+mobile/www/
+mobile/android/app/src/main/assets/public/
+*.keystore
+*.jks

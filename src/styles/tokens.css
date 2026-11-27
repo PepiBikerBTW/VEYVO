@@ -1,0 +1,206 @@
+/* VEYVO design tokens (concept A "Track").
+ * Graphite near-black + ONE orange signal + a sparing cool blue. Barlow Condensed for numbers,
+ * Inter for UI text. Square-ish geometry: every radius <= 10px (no pill shapes anywhere).
+ *
+ * Themes: dark is the default; light via <html data-theme="light">. Components must only use the
+ * semantic tokens below (never raw hex), so both themes and future tweaks stay consistent.
+ * Text tokens hold >= 4.5:1 on --bg, --surface-0..3 and the --*-soft tints (checked with WCAG math).
+ */
+
+:root {
+  /* type */
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-num: 'Barlow Condensed', 'Inter', system-ui, sans-serif;
+  --fs-xs: 11.5px;   /* legends, axis labels, tiny meta (never smaller) */
+  --fs-sm: 12.5px;   /* secondary text, table heads, hints */
+  --fs-md: 14px;     /* body / UI default */
+  --fs-lg: 15px;     /* card titles */
+  --fs-xl: 18px;     /* dialog titles */
+  --fs-2xl: 19px;    /* page title */
+  --fs-3xl: 24px;    /* large headings (next-run type) */
+  --num-sm: 17px;    /* numbers in tables */
+  --num-md: 24px;    /* small stat values */
+  --num-lg: 38px;    /* stat tiles */
+  --num-xl: 64px;    /* hero numbers */
+  --num-hero: clamp(58px, 8vw, 112px);
+  --lh-tight: 1.15;
+  --lh-body: 1.45;
+
+  /* spacing scale (4 px grid) */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-7: 32px; --sp-8: 40px; --sp-9: 48px;
+
+  /* radii: buttons/chips <= 8px, cards 10px. Nothing rounder. */
+  --r-xs: 3px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px;
+
+  /* motion: transform/opacity only, <= 450 ms */
+  --dur-1: 120ms;  /* hover, press */
+  --dur-2: 180ms;  /* small state changes, toasts out */
+  --dur-3: 260ms;  /* dialogs, page enter, segmented thumb */
+  --dur-4: 360ms;  /* reveals, card enter */
+  --dur-5: 450ms;  /* chart bars, line draw, progress fills (the maximum) */
+  --stagger: 45ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-spring: cubic-bezier(.34, 1.45, .64, 1);  /* tiny overshoot for pops (transform only) */
+
+  /* layout */
+  --sidebar-w: 220px;
+  --drag-h: 42px;        /* Windows titleBarOverlay height (electron/main.js) */
+  --caption-w: 150px;    /* space kept free for the Windows caption buttons */
+  --topbar-h: 56px;
+  --gutter: 32px;
+  --page-max: 1600px;
+  --tabbar-h: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --z-sticky: 5; --z-tabbar: 20; --z-toast: 70; --z-tip: 80;
+}
+
+/* ---------------------------------------------------------------- dark (default) */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0D0E11;
+  --surface-0: #09090B;          /* sidebar, tab bar, window chrome */
+  --surface-1: #141619;          /* cards, panels */
+  --surface-2: #1A1C21;          /* raised: next-run card, dialogs, inputs */
+  --surface-3: #23262C;          /* hover, chips, active segment */
+  --line: #2A2E35;               /* hairlines, input borders, table heads */
+  --line-soft: #1E2126;          /* row separators, dividers inside cards */
+  --line-strong: #3A3F48;        /* hovered inputs */
+  --card-line: rgba(255, 255, 255, .035);
+  --lane: rgba(255, 255, 255, .10);
+
+  --text: #F3F4F6;
+  --text-muted: #A9B0BA;         /* secondary text */
+  --text-faint: #878F9A;         /* tertiary: labels, units, axis (>= 4.6:1 on surface-3) */
+
+  --accent: #F5621A;             /* the ONE signal: goal, best, primary action, today's run */
+  --accent-hi: #FF7733;          /* hover */
+  --accent-text: #FF7A3D;        /* orange text on dark surfaces */
+  --accent-ink: #160700;         /* text/icons on an orange fill (6.2:1) */
+  --accent-soft: rgba(245, 98, 26, .13);
+  --accent-soft-2: rgba(245, 98, 26, .22);
+  --accent-line: rgba(245, 98, 26, .55);
+  --glow: rgba(245, 98, 26, .11);
+
+  --cool: #4C9BFF;               /* sparing second colour: quality sessions, "today" marker */
+  --cool-text: #4C9BFF;
+  --cool-soft: rgba(76, 155, 255, .13);
+
+  --good: #3DD68C;  --good-soft: rgba(61, 214, 140, .12);
+  --warn: #F5B83D;  --warn-soft: rgba(245, 184, 61, .12);
+  --danger: #FF6B5E; --danger-soft: rgba(255, 107, 94, .12); --danger-ink: #1A0503;
+
+  /* chart series (same encoding everywhere: run/test/race = fast, intervals/tempo = quality, easy/long = easy) */
+  --series-fast: var(--accent);
+  --series-quality: var(--cool);
+  --series-easy: #666E79;
+  --series-goal: var(--accent);
+  --series-plan: var(--accent-line);
+  --mark-track: #1C1F24;         /* empty track behind bars and lanes */
+  --mark-ring: var(--surface-1); /* ring around chart points */
+  --seg-off: #2A2E35;            /* 10-segment meter, off */
+  --seg-on: #A9B0BA;             /* 10-segment meter, on */
+  --grid: #1E2126;
+  --checker: #F3F4F6;
+
+  --input-bg: #121418;
+  --row-hover: #16181C;
+  --scrim: rgba(4, 5, 7, .66);
+  --skel-shine: rgba(255, 255, 255, .05);
+  --tip-bg: #23262C;
+  --toast-bg: #F3F4F6;
+  --toast-text: #0E1013;
+  --toast-muted: #4A515B;
+  --toast-action: #B34205;
+  --focus: #FF8A52;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-pop: 0 24px 64px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .4);
+  --shadow-tip: 0 8px 24px rgba(0, 0, 0, .45);
+  --shadow-toast: 0 12px 32px rgba(0, 0, 0, .5);
+
+  /* native window chrome (VeyvoPlatform.setTitleBarTheme reads these two; hex only) */
+  --titlebar-bg: #0D0E11;
+  --titlebar-fg: #F3F4F6;
+}
+
+/* ---------------------------------------------------------------- light */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F2F3F5;
+  --surface-0: #E8EAED;
+  --surface-1: #FFFFFF;
+  --surface-2: #FFFFFF;
+  --surface-3: #ECEEF1;
+  --line: #D9DCE1;
+  --line-soft: #E6E8EC;
+  --line-strong: #C3C8CF;
+  --card-line: #E3E5E9;
+  --lane: rgba(14, 16, 19, .12);
+
+  --text: #0E1013;
+  --text-muted: #4A515B;
+  --text-faint: #5F6670;
+
+  --accent: #E8590C;
+  --accent-hi: #F5621A;
+  /* #C24A08 (concept A) darkened one step so small orange text keeps 4.5:1 on the page bg and tints */
+  --accent-text: #B34205;
+  --accent-ink: #160700;
+  --accent-soft: rgba(232, 89, 12, .10);
+  --accent-soft-2: rgba(232, 89, 12, .18);
+  --accent-line: rgba(232, 89, 12, .55);
+  --glow: rgba(232, 89, 12, .07);
+
+  --cool: #1F6FE0;
+  --cool-text: #1A63CC;
+  --cool-soft: rgba(31, 111, 224, .10);
+
+  --good: #0C6E3D;  --good-soft: rgba(12, 110, 61, .10);
+  --warn: #8A5A00;  --warn-soft: rgba(138, 90, 0, .10);
+  --danger: #C62828; --danger-soft: rgba(198, 40, 40, .09); --danger-ink: #FFFFFF;
+
+  --series-easy: #8C939D;
+  --mark-track: #F0F1F3;
+  --mark-ring: var(--surface-1);
+  --seg-off: #E3E6EA;
+  --seg-on: #4A515B;
+  --grid: #ECEEF1;
+  --checker: #0E1013;
+
+  --input-bg: #FFFFFF;
+  --row-hover: #F6F7F9;
+  --scrim: rgba(14, 16, 19, .38);
+  --skel-shine: rgba(255, 255, 255, .6);
+  --tip-bg: #FFFFFF;
+  --toast-bg: #1A1C21;
+  --toast-text: #F3F4F6;
+  --toast-muted: #A9B0BA;
+  --toast-action: #FF7A3D;
+  --focus: #C24A08;
+
+  --shadow-1: 0 1px 2px rgba(14, 16, 19, .06);
+  --shadow-pop: 0 24px 64px rgba(14, 16, 19, .18), 0 2px 8px rgba(14, 16, 19, .08);
+  --shadow-tip: 0 8px 24px rgba(14, 16, 19, .14);
+  --shadow-toast: 0 12px 32px rgba(14, 16, 19, .25);
+
+  --titlebar-bg: #F2F3F5;
+  --titlebar-fg: #0E1013;
+}
+
+/* ---------------------------------------------------------------- responsive token overrides */
+@media (max-width: 1180px) {
+  :root { --sidebar-w: 212px; --gutter: 24px; }
+}
+@media (max-width: 960px) {
+  :root { --sidebar-w: 72px; }
+}
+@media (max-width: 760px) {
+  :root { --gutter: 16px; --topbar-h: 56px; --num-lg: 32px; }
+}

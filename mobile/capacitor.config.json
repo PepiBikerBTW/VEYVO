@@ -1,0 +1,16 @@
+{
+  "appId": "com.veyvo.coach",
+  "appName": "VEYVO",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0D0E11"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    },
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}

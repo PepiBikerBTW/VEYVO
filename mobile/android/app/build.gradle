@@ -1,0 +1,78 @@
+apply plugin: 'com.android.application'
+
+import groovy.json.JsonSlurper
+
+// Version comes from the root package.json so Windows and Android always ship the same version.
+def veyvoPackage = new JsonSlurper().parse(file('../../../package.json'))
+def veyvoVersionName = veyvoPackage.version.toString()
+def veyvoVersionParts = veyvoVersionName.tokenize('.-')
+def veyvoVersionCode = (veyvoVersionParts[0] as int) * 10000 + (veyvoVersionParts[1] as int) * 100 + (veyvoVersionParts[2] as int)
+
+// Release signing is read from environment variables (CI secrets or a local shell). Keys never live in the repo.
+def veyvoKeystore = System.getenv('VEYVO_KEYSTORE_PATH')
+
+android {
+    namespace = "com.veyvo.coach"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.veyvo.coach"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode veyvoVersionCode
+        versionName veyvoVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (veyvoKeystore) {
+                storeFile file(veyvoKeystore)
+                storePassword System.getenv('VEYVO_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('VEYVO_KEY_ALIAS')
+                keyPassword System.getenv('VEYVO_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (veyvoKeystore) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

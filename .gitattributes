@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.ico binary
+*.jar binary
+*.apk binary
+*.fit binary
+*.workout binary
+*.woff2 binary

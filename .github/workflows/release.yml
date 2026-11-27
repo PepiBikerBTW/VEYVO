@@ -9,7 +9,21 @@ permissions:
   contents: write
 
 jobs:
+  version-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must match package.json version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}" >&2
+            exit 1
+          fi
+
   windows:
+    needs: version-guard
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,4 +40,46 @@ jobs:
           files: |
             release/*.exe
             release/*.blockmap
-            release/*.yml
+            release/latest.yml
+
+  android:
+    needs: version-guard
+    runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.VEYVO_ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Skip unsigned release
+        if: env.HAS_SIGNING_KEY != 'true'
+        run: echo "::warning::VEYVO_ANDROID_KEYSTORE_BASE64 secret is not set, so no Android APK is attached to this release."
+      - name: Install mobile dependencies
+        if: env.HAS_SIGNING_KEY == 'true'
+        working-directory: mobile
+        run: npm ci
+      - name: Build signed APK
+        if: env.HAS_SIGNING_KEY == 'true'
+        working-directory: mobile
+        env:
+          VEYVO_KEYSTORE_BASE64: ${{ secrets.VEYVO_ANDROID_KEYSTORE_BASE64 }}
+          VEYVO_KEYSTORE_PASSWORD: ${{ secrets.VEYVO_ANDROID_KEYSTORE_PASSWORD }}
+          VEYVO_KEY_ALIAS: ${{ secrets.VEYVO_ANDROID_KEY_ALIAS }}
+          VEYVO_KEY_PASSWORD: ${{ secrets.VEYVO_ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$VEYVO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/veyvo-release.jks"
+          export VEYVO_KEYSTORE_PATH="$RUNNER_TEMP/veyvo-release.jks"
+          npm run sync
+          cd android
+          chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+          version="$(node -p "require('../../package.json').version")"
+          cp app/build/outputs/apk/release/app-release.apk "../../VEYVO-Android-${version}.apk"
+      - uses: softprops/action-gh-release@v2
+        if: env.HAS_SIGNING_KEY == 'true'
+        with:
+          files: VEYVO-Android-*.apk

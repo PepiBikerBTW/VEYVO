@@ -1,0 +1,327 @@
+/* VEYVO shell: window chrome, sidebar, topbar, scroll container, phone header + tab bar.
+ *
+ * Desktop (Windows) uses titleBarStyle 'hidden' with a 42 px titleBarOverlay: the caption buttons
+ * sit in the top-right corner. Only NON-scrolling chrome is draggable (.brand and .topbar), and
+ * every interactive child opts out with no-drag, so content scrolled under the top edge stays
+ * clickable (0.3 bug: a fixed drag strip swallowed clicks).
+ *
+ * Breakpoints:  > 1180 px  full sidebar 220 px
+ *               961-1180   compact sidebar 212 px, 24 px gutters (the 1120 x 720 minimum window)
+ *               761-960    icon rail 72 px (labels stay for screen readers)
+ *               <= 760     phone: no sidebar, compact header, bottom tab bar, safe-area insets
+ */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+.sidebar {
+  background: var(--surface-0);
+  border-right: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.brand {
+  flex: none;
+  height: calc(var(--drag-h) + 8px);
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 2px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; flex: none; }
+.brand-name { font: 700 22px/1 var(--font-num); letter-spacing: .16em; color: var(--text); }
+
+.btn-side {
+  margin-top: 18px;
+  width: 100%;
+  height: 40px;
+  justify-content: flex-start;
+  padding: 0 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.btn-side:hover { background: var(--surface-3); }
+.btn-side .ic { color: var(--accent); stroke-width: 2.2; }
+.btn-side .kbd { margin-left: auto; }
+
+.nav { position: relative; display: flex; flex-direction: column; gap: 2px; margin-top: 20px; }
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 14.5px;
+  white-space: nowrap;
+  transition: background-color var(--dur-1), color var(--dur-1);
+}
+.nav-item:hover { background: var(--surface-1); color: var(--text); }
+.nav-item[aria-current="page"] { background: var(--surface-2); color: var(--text); }
+.nav-item[aria-current="page"] .ic { color: var(--accent); }
+.nav-item .ic { transition: color var(--dur-1), transform var(--dur-2) var(--ease-spring); }
+.nav-item:active .ic { transform: scale(.9); }
+/* one lane line that slides to the active item (VeyvoUI.app positions it) */
+.nav-lane {
+  position: absolute;
+  left: -14px;
+  top: 0;
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform: translateY(var(--lane-y, 10px));
+  opacity: var(--lane-o, 0);
+  transition: transform var(--dur-3) var(--ease-out), opacity var(--dur-2);
+  pointer-events: none;
+}
+.nav-badge {
+  margin-left: auto;
+  font: 600 12.5px/1 var(--font-ui);
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.nav-badge.is-today { color: var(--text); background: var(--accent-soft); padding: 4px 6px; border-radius: var(--r-sm); }
+
+.side-foot { margin-top: auto; padding-top: 16px; display: flex; flex-direction: column; gap: 2px; }
+.side-foot > .nav-item { border-top: 1px solid var(--line-soft); border-radius: 0; margin-top: 4px; padding-top: 0; }
+.side-foot > .nav-item:hover { border-radius: var(--r-md); }
+
+/* connection slot (Strava): states is-off | is-ok | is-busy | is-error */
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  color: var(--text-faint);
+  width: 100%;
+  text-align: left;
+  transition: background-color var(--dur-1), color var(--dur-1);
+}
+.conn:hover { background: var(--surface-1); color: var(--text-muted); }
+.conn .ic { --ic: 16px; }
+.conn-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.conn-text small { font-size: 11.5px; color: var(--text-faint); }
+.conn.is-ok .conn-dot { background: var(--good); }
+.conn.is-error { color: var(--warn); }
+.conn.is-error .ic { color: var(--warn); }
+.conn.is-busy .ic { color: var(--text-muted); animation: veyvo-spin .9s linear infinite; }
+.conn-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--text-faint); margin-left: auto; flex: none; }
+.conn.is-off .conn-dot { display: none; }
+
+.me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 0 4px;
+  margin-top: 6px;
+  border-top: 1px solid var(--line-soft);
+  min-width: 0;
+}
+.me-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; border-radius: var(--r-md); padding: 2px; margin: -2px; text-align: left; }
+.me-main:hover .me-name { color: var(--accent-text); }
+.avatar {
+  width: 32px; height: 32px; flex: none;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  display: grid; place-items: center;
+  font: 700 17px/1 var(--font-num);
+  color: var(--text);
+}
+.me-text { min-width: 0; display: flex; flex-direction: column; }
+.me-name { font-weight: 600; font-size: 13.5px; line-height: 1.2; transition: color var(--dur-1); }
+.me-goal { font-size: 12px; color: var(--text-faint); }
+.me .icon-btn { margin-left: auto; }
+
+/* ---------------------------------------------------------------- main column */
+.main-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.topbar {
+  flex: none;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 var(--gutter) 6px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+html[data-platform="desktop"] .topbar { padding-right: var(--caption-w); }
+.topbar a, .topbar button, .topbar input, .topbar select, .topbar [tabindex], .topbar .no-drag { -webkit-app-region: no-drag; }
+.topbar-titles { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.page-title { font: 600 var(--fs-2xl)/1 var(--font-ui); letter-spacing: -.01em; white-space: nowrap; }
+.page-title:focus-visible { outline-offset: 4px; border-radius: 2px; }
+.topbar-date { font-size: 13px; color: var(--text-faint); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topbar-actions:empty { display: none; }
+.m-only { display: none !important; }
+
+.main-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.main-scroll:focus { outline: none; }
+.page {
+  padding: 12px var(--gutter) 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: var(--page-max);
+}
+.page:focus { outline: none; }
+
+/* ---------------------------------------------------------------- tab bar (phone) */
+.tabbar { display: none; }
+
+/* ---------------------------------------------------------------- wide layouts on touch devices
+   Safe-area insets (all 0 on desktop) also above 760 px: Android landscape phones and tablets have
+   cut-outs and system bars there too. Rail items never shrink (the sidebar scrolls instead). */
+.sidebar { padding-top: var(--safe-top); padding-bottom: calc(14px + var(--safe-bottom)); padding-left: calc(14px + var(--safe-left)); }
+.sidebar > *, .side-foot > *, .nav > .nav-item { flex-shrink: 0; }
+.topbar {
+  height: calc(var(--topbar-h) + var(--safe-top));
+  padding-top: var(--safe-top);
+  padding-right: calc(var(--gutter) + var(--safe-right));
+}
+html[data-platform="desktop"] .topbar { padding-right: var(--caption-w); }
+.main-scroll { padding-right: var(--safe-right); padding-bottom: var(--safe-bottom); }
+@media (pointer: coarse) and (min-width: 761px) {
+  .sidebar .btn-side, .nav-item { height: 44px; }
+  .me .icon-btn { width: 44px; height: 44px; }
+}
+
+/* ---------------------------------------------------------------- compact sidebar */
+@media (max-width: 1180px) and (min-width: 761px) {
+  .nav-item { font-size: 14px; gap: 11px; }
+  .brand-name { font-size: 21px; }
+}
+
+/* ---------------------------------------------------------------- icon rail */
+@media (max-width: 960px) and (min-width: 761px) {
+  .sidebar { padding: var(--safe-top) 12px calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left)); align-items: stretch; }
+  .brand { justify-content: center; padding-left: 0; }
+  .brand-name { display: none; }
+  .side-label, .btn-side .kbd, .conn-text, .me-text {
+    position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .btn-side { justify-content: center; padding: 0; }
+  .nav-item { justify-content: center; padding: 0; }
+  .nav-lane { left: -12px; }
+  .nav-badge { position: absolute; top: 7px; right: 8px; width: 7px; height: 7px; padding: 0; border-radius: 2px; background: var(--accent); font-size: 0; color: transparent; }
+  .nav-badge .sr-only { font-size: 12px; }
+  .conn { justify-content: center; padding: 6px 0; }
+  .conn-dot { position: absolute; margin: 0; transform: translate(10px, -9px); }
+  .conn { position: relative; }
+  .me { flex-direction: column; padding: 12px 0 0; gap: 8px; }
+  .me-main { justify-content: center; flex: none; }
+  .me .icon-btn { margin: 0; }
+}
+
+/* ---------------------------------------------------------------- phone */
+@media (max-width: 760px) {
+  .app { display: flex; flex-direction: column; }
+  .sidebar { display: none; }
+  .main-col { flex: 1; }
+  .m-only { display: inline-flex !important; }
+  .d-only { display: none !important; }
+
+  .topbar {
+    height: auto;
+    min-height: calc(56px + var(--safe-top));
+    padding: calc(var(--safe-top) + 8px) calc(var(--gutter) + var(--safe-right)) 8px calc(var(--gutter) + var(--safe-left));
+    align-items: center;
+    -webkit-app-region: no-drag;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  html[data-platform="desktop"] .topbar { padding-right: calc(var(--gutter) + var(--safe-right)); }
+  .m-brand { width: 26px; height: 26px; border-radius: 7px; flex: none; }
+  .topbar-titles { flex-direction: column; align-items: flex-start; gap: 3px; flex: 1; }
+  .page-title { font-size: 18px; }
+  .topbar-date { font-size: 12px; }
+  .topbar-actions { gap: 4px; }
+  .topbar .avatar { width: 34px; height: 34px; font-size: 18px; }
+  .topbar .m-profile { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: var(--r-md); margin-right: -6px; }
+
+  .main-scroll { padding-right: 0; padding-bottom: 0; } /* the page and the tab bar carry the insets here */
+  .page { padding: 14px calc(var(--gutter) + var(--safe-right)) 24px calc(var(--gutter) + var(--safe-left)); gap: 14px; }
+
+  .tabbar {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: stretch;
+    flex: none;
+    position: relative;
+    z-index: var(--z-tabbar);
+    background: var(--surface-0);
+    border-top: 1px solid var(--line-soft);
+    padding: 6px calc(6px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(6px + var(--safe-left));
+  }
+  .tab {
+    position: relative;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-bottom: 5px;
+    border-radius: var(--r-md);
+    font: 500 11px/1.1 var(--font-ui);
+    color: var(--text-faint);
+    text-align: center;
+    transition: color var(--dur-1);
+  }
+  .tab .ic { --ic: 22px; transition: transform var(--dur-2) var(--ease-spring), color var(--dur-1); }
+  .tab:active .ic { transform: scale(.88); }
+  .tab[aria-current="page"], .tab.is-current { color: var(--text); }
+  .tab[aria-current="page"] .ic, .tab.is-current .ic { color: var(--accent); }
+  .tab::before {
+    content: "";
+    position: absolute; top: -6px; left: 50%;
+    width: 28px; height: 2px; margin-left: -14px;
+    border-radius: 0 0 2px 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform var(--dur-3) var(--ease-out);
+  }
+  .tab[aria-current="page"]::before, .tab.is-current::before { transform: scaleX(1); }
+  .tab-log { color: var(--text); }
+  .tab-plus {
+    width: 48px; height: 34px;
+    border-radius: var(--r-lg);
+    background: var(--accent);
+    color: var(--accent-ink);
+    display: grid; place-items: center;
+    transition: transform var(--dur-1) var(--ease-out), background-color var(--dur-1);
+  }
+  .tab-plus .ic { --ic: 22px; stroke-width: 2.3; color: var(--accent-ink) !important; }
+  .tab-log:active .tab-plus { transform: scale(.94); }
+  .tab-log::before { display: none; }
+}

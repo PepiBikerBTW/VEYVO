@@ -1,0 +1,477 @@
+/* Structured workout side sheet + watch exports ("workout" / "workoutExport")
+ * Owned by ui/workout-sheet.js. Every selector here starts with .ws- (shared pieces live in components.css).
+ * Use only semantic tokens from tokens.css; radius <= 10px; motion = transform/opacity, <= 450 ms,
+ * entrance motion only while .ws[data-anim="on"] (first paint) and off with reduced motion. */
+
+/* ================================================================ sheet frame */
+dialog.ws-dlg.dlg-sheet .dlg-panel { --dlg-w: 640px; }
+.ws-dlg .dlg-body { padding-top: 6px; padding-bottom: 28px; scroll-padding-bottom: 24px; }
+.ws-dlg .dlg-title { overflow-wrap: anywhere; }
+.ws { display: flex; flex-direction: column; gap: 24px; }
+
+/* series colour per session group (same encoding as the charts and the plan page) */
+.ws-g-fast { --g: var(--series-fast); --g-text: var(--accent-text); }
+.ws-g-quality { --g: var(--series-quality); --g-text: var(--cool-text); }
+.ws-g-easy { --g: var(--series-easy); --g-text: var(--text-muted); }
+
+/* ================================================================ workout card */
+.ws-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px 16px;
+}
+
+/* name */
+.ws-name { display: flex; flex-direction: column; gap: 6px; }
+.ws-name-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ws-count { font: 600 14px/1 var(--font-num); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.ws-name-input { height: 46px; font: 600 17px/1.2 var(--font-ui); letter-spacing: -.005em; }
+.ws-name-bottom { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px 14px; flex-wrap: wrap; min-height: 18px; }
+.ws-name-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; font-size: 12.5px; line-height: 1.4; color: var(--text-faint); }
+.ws-name-hint:empty { display: none; }
+.ws-hint-ok { color: var(--good); stroke-width: 2.2; }
+.ws-hint-cut { color: var(--warn); }
+.ws-short {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+.ws-name-reset { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+.ws-name-reset .ic { --ic: 13px; }
+
+/* figures: estimate + watch steps */
+.ws-figs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.ws-fig { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ws-fig + .ws-fig { border-left: 1px solid var(--line-soft); padding-left: 18px; }
+.ws-fig-label { font-size: 12px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-fig-value {
+  display: flex; align-items: baseline;
+  font: 600 34px/.9 var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.ws-fig-value .unit { --unit-size: 13px; }
+.ws-nu { display: inline-flex; align-items: baseline; }
+.ws-nu .num + .unit { margin-right: .28em; }
+.ws-nu .unit:last-child { margin-right: 0; }
+.ws-approx { font: 500 22px/1 var(--font-num); color: var(--text-faint); margin-right: 5px; }
+.ws-fig-sub { font-size: 12px; color: var(--text-faint); }
+
+/* intensity profile (decorative; the step list carries the numbers) */
+.ws-profile {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 54px;
+  border-bottom: 1px solid var(--line);
+}
+.ws-blk {
+  display: block;
+  flex-basis: 0;
+  min-width: 3px;
+  height: calc(var(--lv, .5) * 100%);
+  background: var(--g);
+  border-radius: 2px 2px 0 0;
+}
+.ws-blk-warmup, .ws-blk-cooldown { background: var(--line-strong); }
+.ws-blk-recovery, .ws-blk-rest { background: var(--seg-off); }
+:root[data-theme="light"] .ws-blk-recovery, :root[data-theme="light"] .ws-blk-rest { background: var(--line); }
+.ws-blk.grow-y { animation-delay: calc(var(--i, 0) * 18ms + 60ms); }
+
+/* step list */
+.ws-steps { display: flex; flex-direction: column; margin-top: -4px; }
+.ws-step {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto minmax(118px, auto);
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ws-steps > .ws-step:last-child, .ws-rep-steps > .ws-step:last-child { border-bottom: 0; }
+.ws-step-bar { display: block; width: 4px; height: 18px; border-radius: 2px; background: var(--g); }
+.ws-step-warmup .ws-step-bar, .ws-step-cooldown .ws-step-bar { background: var(--line-strong); }
+.ws-step-recovery .ws-step-bar, .ws-step-rest .ws-step-bar { background: var(--seg-off); height: 10px; }
+:root[data-theme="light"] .ws-step-recovery .ws-step-bar, :root[data-theme="light"] .ws-step-rest .ws-step-bar { background: var(--line); }
+.ws-step-name { font-weight: 500; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-step-recovery .ws-step-name, .ws-step-rest .ws-step-name { color: var(--text-muted); font-weight: 400; }
+.ws-step-amt { font: 600 17px/1 var(--font-num); color: var(--text); text-align: right; white-space: nowrap; }
+.ws-step-tgt { text-align: right; white-space: nowrap; }
+.ws-step-tgt.num { font: 600 16px/1 var(--font-num); color: var(--g-text, var(--text)); }
+.ws-step-tgt.faint { font-size: 12.5px; }
+.ws-rep {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: stretch;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ws-steps > .ws-rep:last-child { border-bottom: 0; }
+.ws-rep-n {
+  align-self: center;
+  font: 700 24px/1 var(--font-num);
+  color: var(--g-text, var(--text));
+  letter-spacing: .01em;
+}
+.ws-rep-steps {
+  display: flex; flex-direction: column;
+  padding-left: 12px;
+  border-left: 2px solid var(--g);
+}
+.ws-rep-steps .ws-step { min-height: 34px; }
+
+.ws-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-muted); max-width: 62ch; }
+.ws-est { font-size: 12px; line-height: 1.45; color: var(--text-faint); margin-top: -6px; }
+.ws-last {
+  display: flex; align-items: center; gap: 7px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px; color: var(--text-muted);
+}
+.ws-last .ic { color: var(--good); }
+.ws-errors { font-size: 13px; }
+.ws-err-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ws-err-list b { font-weight: 600; color: var(--text); }
+
+/* ================================================================ destination: brand picker */
+.ws-dest { display: flex; flex-direction: column; gap: 12px; }
+.ws-dest-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.ws-h { font: 600 16px/1.25 var(--font-ui); color: var(--text); }
+.ws-dest-sub { font-size: 12.5px; color: var(--text-faint); }
+
+.ws-brands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ws-brand {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 64px;
+  padding: 11px 10px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  text-align: left;
+  overflow: hidden;
+  transition: border-color var(--dur-1), background-color var(--dur-1), transform var(--dur-2) var(--ease-out);
+}
+.ws-brand::before {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform var(--dur-3) var(--ease-out);
+}
+.ws-brand:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.ws-brand:active { transform: scale(.97); }
+.ws-brand[aria-checked="true"] { border-color: var(--accent-line); background: var(--accent-soft); }
+.ws-brand[aria-checked="true"]::before { transform: none; }
+.ws-brand-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
+.ws-brand-name { font: 600 14px/1.2 var(--font-ui); color: var(--text); overflow-wrap: break-word; }
+.ws-brand-how { padding-right: 18px; font-size: 11.5px; line-height: 1.25; color: var(--text-faint); }
+.ws-brand[aria-checked="true"] .ws-brand-how { color: var(--text-muted); }
+.ws-brand-ic { position: absolute; right: 9px; bottom: 10px; color: var(--text-faint); transition: color var(--dur-1), transform var(--dur-2) var(--ease-spring); }
+.ws-brand:hover .ws-brand-ic { color: var(--text-muted); }
+.ws-brand[aria-checked="true"] .ws-brand-ic { color: var(--accent-text); transform: scale(1.08); }
+.ws-brand-wide { grid-column: 1 / -1; min-height: 46px; align-items: center; padding-top: 10px; }
+.ws-brand-wide .ws-brand-text { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; padding-right: 22px; }
+.ws-brand-wide .ws-brand-how { padding-right: 0; }
+.ws-brand-wide .ws-brand-ic { bottom: auto; top: 50%; margin-top: -8px; }
+.ws[data-anim="on"] .ws-brand { animation: veyvo-rise var(--dur-4) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 12ms + 100ms); }
+.ws[data-anim="on"] .ws-flow { animation: veyvo-rise var(--dur-4) var(--ease-out) .24s both; }
+
+/* ================================================================ flow panel */
+.ws-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px 18px;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+:root[data-theme="light"] .ws-flow { box-shadow: inset 0 2px 0 var(--accent), var(--shadow-1); }
+.ws-flow-enter { animation: veyvo-rise var(--dur-4) var(--ease-out) both; }
+.ws-flow-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.ws-lead { margin-top: -6px; font-size: 13.5px; line-height: 1.5; color: var(--text-muted); max-width: 64ch; }
+.ws-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ws-option { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.ws-callout { font-size: 13px; }
+.ws-callout-actions { margin-top: 6px; }
+.ws-third b { color: var(--text); }
+.ws-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-text); font-weight: 600; font-size: 13px; }
+.ws-link:hover { color: var(--text); }
+.ws-link .ic { --ic: 14px; }
+.ws-blocked { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--danger); }
+
+/* status line (aria-live): busy / ok / error / info */
+.ws-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.ws-status.is-ok { background: var(--good-soft); border-color: transparent; }
+.ws-status.is-error { background: var(--danger-soft); border-color: transparent; }
+.ws-status.is-busy { color: var(--text-muted); }
+.ws-status-ic { margin-top: 1px; flex: none; }
+.ws-status.is-ok .ws-status-ic { color: var(--good); }
+.ws-status.is-error .ws-status-ic { color: var(--danger); }
+.ws-status-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.ws-status-text { overflow-wrap: anywhere; }
+.ws-status-file { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.ws-status-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 -4px -10px; }
+.ws-status-new { animation: veyvo-rise var(--dur-3) var(--ease-out) both; }
+.ws-status-new .ws-status-ic { animation: veyvo-pop var(--dur-3) var(--ease-spring) .06s both; }
+.ws-spin {
+  flex: none;
+  width: 15px; height: 15px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: veyvo-spin .8s linear infinite;
+}
+
+/* numbered steps ("Postup") and notes ("Dobré vědět") */
+.ws-h4 {
+  margin-bottom: 10px;
+  font: 600 12.5px/1 var(--font-num);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.ws-flow > .ws-howto { padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.ws-howto-list { display: flex; flex-direction: column; gap: 9px; }
+.ws-howto-list > li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.ws-howto-n {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  background: var(--surface-3);
+  font: 600 13px/1 var(--font-num);
+  color: var(--text-muted);
+}
+.ws-howto-text { min-width: 0; padding-top: 1px; }
+.ws-notes ul { display: flex; flex-direction: column; gap: 7px; }
+.ws-notes li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.ws-notes li .ic { margin-top: 2px; color: var(--text-faint); }
+.ws-fallback {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px; line-height: 1.5; color: var(--text-muted);
+}
+.ws-fallback .ws-status { align-self: stretch; }
+.ws-unofficial { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
+.ws-unofficial .ic { margin-top: 1px; }
+
+/* paths (Internal Storage > GARMIN > NewFiles) and file names */
+.ws-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; vertical-align: baseline; }
+.ws-path-seg {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text);
+  font: 500 12.5px/1.6 var(--font-ui);
+  white-space: nowrap;
+}
+.ws-path-sep { color: var(--text-faint); stroke-width: 2.2; }
+.ws-code {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text);
+  font: 500 12.5px/1.6 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ws-status .ws-path-seg, .ws-status .ws-code { background: var(--card-line); }
+:root[data-theme="light"] .ws-status .ws-path-seg, :root[data-theme="light"] .ws-status .ws-code { background: var(--surface-1); }
+
+/* Garmin drives found over USB (cool blue = a connected device) */
+.ws-drive {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  font-size: 13px; line-height: 1.45; color: var(--text-muted);
+}
+.ws-drive > .ic { flex: none; color: var(--text-faint); }
+.ws-drive-msg { flex: 1; min-width: 0; }
+.ws-drive .ws-spin { margin-top: 0; }
+.ws-rescan { flex: none; margin-left: auto; }
+.ws-drive.is-found {
+  flex-direction: column; align-items: stretch; gap: 10px;
+  border-style: solid; border-color: transparent;
+  background: var(--cool-soft);
+  box-shadow: inset 2px 0 0 var(--cool);
+}
+.ws-drive-head { display: flex; align-items: center; gap: 10px; }
+.ws-drive-title { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+.ws-drive-title .ic { color: var(--cool-text); }
+.ws-drive-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; }
+.ws-drive-id { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.ws-drive-label { font: 600 14px/1.2 var(--font-ui); color: var(--text); }
+.ws-drive.is-found .ws-code { background: var(--surface-2); }
+
+/* intervals.icu key + send */
+.ws-keyrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 8px 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: 13px; color: var(--text-muted);
+}
+.ws-keyrow.is-set { box-shadow: inset 2px 0 0 var(--good); }
+.ws-key-ic { flex: none; color: var(--good); }
+.ws-keyrow.is-set { flex-wrap: wrap; }
+.ws-key-main { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.ws-key-title { font-weight: 600; color: var(--text); }
+.ws-key-sub { font-size: 12px; color: var(--text-faint); }
+.ws-key-actions { display: flex; gap: 2px; flex: none; }
+.ws-setup {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+}
+.ws-setup .ws-h4 { margin-bottom: 0; }
+.ws-inline-action { display: block; margin-top: 4px; }
+.ws-keyform { display: flex; flex-direction: column; gap: 6px; }
+.ws-keyline { display: flex; gap: 8px; align-items: stretch; }
+.ws-keyline .input { flex: 1; height: 40px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.ws-keyline .btn { height: 40px; }
+.ws-keyform .field-hint { display: flex; align-items: center; gap: 4px; }
+.ws-send { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+.ws-date-field { width: 190px; }
+.ws-date { height: 44px; font-variant-numeric: tabular-nums; }
+
+/* text preview */
+.ws-text-wrap { display: flex; flex-direction: column; }
+.ws-text {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: var(--r-md);
+  background: var(--input-bg);
+  border: 1px solid var(--line-soft);
+  font: 400 13px/1.6 var(--font-ui);
+  color: var(--text);
+  user-select: text;
+}
+.ws-copy .ws-pop { animation: veyvo-pop var(--dur-3) var(--ease-spring) both; }
+.ws-offscreen { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* ================================================================ smaller windows and phones */
+@media (max-width: 1180px) {
+  dialog.ws-dlg.dlg-sheet .dlg-panel { --dlg-w: 600px; }
+}
+@media (max-width: 760px) {
+  /* components.css resets phone sheets to height: auto, which beats the UA's dialog:modal
+     height: fit-content, so the fixed dialog fills the screen and the panel sticks to the top
+     (16 px of the tab bar show below it). fit-content lets margin-top: auto dock it to the bottom. */
+  dialog.ws-dlg.dlg-sheet { height: fit-content; }
+  .ws { gap: 20px; }
+  .ws-card { padding: 14px 14px 14px; gap: 14px; }
+  .ws-name-input { height: 48px; font-size: 17px; }
+  .ws-fig + .ws-fig { padding-left: 12px; }
+  .ws-fig-value { font-size: 28px; }
+  .ws-approx { font-size: 18px; margin-right: 3px; }
+  .ws-step { grid-template-columns: 4px minmax(0, 1fr) auto auto; gap: 10px; }
+  .ws-rep { grid-template-columns: 36px minmax(0, 1fr); }
+  .ws-rep-steps { padding-left: 10px; }
+  .ws-brands { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ws-brand { min-height: 68px; padding: 10px 8px 10px 10px; }
+  .ws-brand svg.ws-brand-ic { display: none; }
+  .ws-brand-how { padding-right: 0; }
+  .ws-key-actions { margin-left: 18px; }
+  .ws-brand-wide { min-height: 52px; }
+  .ws-brand-wide svg.ws-brand-ic { display: inline-block; }
+  .ws-drive-row > .btn { flex: 1 1 100%; }
+  .ws-flow { padding: 14px 14px 16px; }
+  .ws-actions > .btn { flex: 1 1 auto; }
+  .ws-keyline { flex-direction: column; }
+  .ws-keyline .input, .ws-keyline .btn { flex: none; height: 44px; }
+  .ws-key-actions .btn { min-width: 44px; }
+  .ws-send > .btn { flex: 1 1 100%; }
+  .ws-date-field { width: 100%; }
+  .ws-link, .ws-name-reset { min-height: 44px; display: inline-flex; align-items: center; }
+  .ws-name-bottom { min-height: 0; }
+}
+
+/* ================================================================ print: only the workout */
+.ws-print-root { display: none; }
+@media print {
+  :root:has(body.ws-printing) { color-scheme: light; background: white !important; }
+  body.ws-printing { height: auto !important; overflow: visible !important; background: white !important; }
+  body.ws-printing > :not(.ws-print-root), body.ws-printing dialog { display: none !important; }
+  body.ws-printing .ws-print-root {
+    display: block !important;
+    color: black;
+    font: 11pt/1.45 var(--font-ui);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ws-p-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 6pt;
+    border-bottom: 2pt solid black;
+    font-size: 9pt; color: dimgray;
+  }
+  .ws-p-brand { font: 700 12pt/1 var(--font-num); letter-spacing: .16em; color: black; }
+  .ws-p-title { margin: 16pt 0 2pt; font: 700 26pt/1.1 var(--font-ui); color: black; }
+  .ws-p-date { font-size: 12pt; }
+  .ws-p-desc { margin: 8pt 0 0; max-width: 150mm; color: dimgray; }
+  .ws-p-table { width: 100%; margin-top: 14pt; border-collapse: collapse; }
+  .ws-p-table th {
+    padding: 0 6pt 5pt; text-align: left;
+    border-bottom: 1pt solid black;
+    font: 600 8.5pt/1 var(--font-ui); text-transform: uppercase; letter-spacing: .08em; color: dimgray;
+  }
+  .ws-p-table td { padding: 8pt 6pt; border-bottom: .5pt solid silver; vertical-align: middle; }
+  .ws-p-n { width: 18pt; font: 600 12pt/1 var(--font-num); color: dimgray; }
+  .ws-p-num { font: 600 13pt/1 var(--font-num); white-space: nowrap; }
+  .ws-p-table th:last-child { text-align: right; }
+  .ws-p-soft { color: dimgray; }
+  .ws-p-rep td { padding: 10pt 6pt 2pt; border-bottom: 0; font: 700 12pt/1 var(--font-num); letter-spacing: .02em; }
+  .ws-p-in td:nth-child(2) { padding-left: 14pt; }
+  .ws-p-box { text-align: right; white-space: nowrap; }
+  .ws-p-box span { display: inline-block; width: 11pt; height: 11pt; margin-left: 3pt; border: 1.2pt solid black; border-radius: 2pt; vertical-align: middle; }
+  .ws-p-est { margin-top: 12pt; font-size: 10pt; color: dimgray; }
+}

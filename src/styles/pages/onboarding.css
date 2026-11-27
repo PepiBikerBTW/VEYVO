@@ -1,0 +1,125 @@
+/* First-run guide ("onboarding"), owned by ui/onboarding.js. Every selector starts with .onb-
+ * (shared pieces live in components.css). Semantic tokens only; radius <= 10px; motion =
+ * transform/opacity, switched off by prefers-reduced-motion and <html data-motion="off">. */
+
+dialog.onb-dlg { --dlg-w: 620px; }
+.onb-dlg .dlg-head { padding: 22px 24px 6px; }
+.onb-dlg .dlg-head .eyebrow { color: var(--accent-text); }
+.onb-dlg .dlg-title { font-size: 22px; line-height: 1.2; letter-spacing: -.01em; text-wrap: balance; }
+.onb-dlg .dlg-body { padding: 10px 24px 22px; }
+.onb-dlg .dlg-foot { justify-content: space-between; padding: 14px 24px; }
+
+.onb { display: flex; flex-direction: column; gap: 20px; }
+
+/* ---------------------------------------------------------------- lane progress (3 steps) */
+.onb-progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.onb-seg { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.onb-seg-bar { position: relative; height: 4px; overflow: hidden; background: var(--seg-off); border-radius: 2px; }
+.onb-seg-fill {
+  position: absolute; inset: 0;
+  background: var(--accent);
+  transform-origin: 0 50%;
+  transform: scaleX(var(--f, 0));
+  transition: transform var(--dur-5) var(--ease-out);
+}
+.onb-seg-label { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--text-faint); white-space: nowrap; }
+.onb-seg-n { font-size: 15px; font-weight: 600; }
+.onb-seg.is-done .onb-seg-label { color: var(--text-muted); }
+.onb-seg.is-current .onb-seg-label { color: var(--text); font-weight: 600; }
+.onb-seg.is-current .onb-seg-n { color: var(--accent-text); }
+
+/* ---------------------------------------------------------------- steps */
+.onb-step { display: flex; flex-direction: column; gap: 18px; }
+.onb-lead { max-width: 60ch; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+.onb-fields { display: flex; flex-direction: column; gap: 16px; }
+.onb-in-next { animation: onb-in-next var(--dur-4) var(--ease-out) both; }
+.onb-in-back { animation: onb-in-back var(--dur-4) var(--ease-out) both; }
+@keyframes onb-in-next { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes onb-in-back { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: none; } }
+
+/* step 1: name + goal */
+.onb-dist-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.onb-km { width: 124px; }
+.onb-km .input { height: 38px; }
+.onb-goal-row { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 14px; align-items: start; }
+.onb-pace {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 21px;
+  padding: 11px 16px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-theme="light"] .onb-pace { background: var(--bg); }
+.onb-pace-l, .onb-pace-s { font-size: 12px; color: var(--text-faint); }
+.onb-pace-v { font: 600 34px/1 var(--font-num); color: var(--text); white-space: nowrap; }
+.onb-pace-v .unit { --unit-size: 14px; }
+.onb-pace-num.is-empty { color: var(--text-faint); }
+
+/* step 2: days */
+.onb-step-days .day-toggles { gap: 8px; }
+.onb-step-days .day-toggle { text-align: center; }
+.onb-step-days .day-toggle { width: 54px; height: 54px; font-size: 15px; }
+.onb-days-sum { font-size: 14px; color: var(--text-muted); }
+.onb-days-sum b { font-weight: 600; color: var(--text); }
+
+/* step 3: start options */
+.onb-options { display: flex; flex-direction: column; gap: 10px; }
+.onb-option {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; min-height: 68px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  text-align: left;
+  transition: border-color var(--dur-1), background-color var(--dur-1), transform var(--dur-2) var(--ease-out);
+}
+:root[data-theme="light"] .onb-option { background: var(--surface-1); }
+.onb-option:hover { border-color: var(--accent-line); background: var(--surface-3); }
+.onb-option:active { transform: scale(.985); }
+.onb-option-ico {
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  transition: background-color var(--dur-2), color var(--dur-2), transform var(--dur-2) var(--ease-spring);
+}
+.onb-option:hover .onb-option-ico { background: var(--accent); color: var(--accent-ink); transform: scale(1.04); }
+.onb-option-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.onb-option-t { font-size: 15px; font-weight: 600; color: var(--text); }
+.onb-option-d { font-size: 13px; line-height: 1.4; color: var(--text-muted); }
+.onb-option > .ic:last-child { color: var(--text-faint); transition: transform var(--dur-2) var(--ease-out), color var(--dur-1); }
+.onb-option:hover > .ic:last-child { transform: translateX(3px); color: var(--accent-text); }
+.onb-file { display: none; }
+
+/* ---------------------------------------------------------------- footer */
+.onb-back.is-hidden { visibility: hidden; }
+.onb-steptext { font-size: 14px; letter-spacing: .04em; color: var(--text-faint); }
+.onb-next .ic { transition: transform var(--dur-2) var(--ease-out); }
+.onb-next:hover .ic { transform: translateX(2px); }
+
+@media (max-width: 760px) {
+  .onb-dlg .dlg-head { padding: 10px 16px 4px; }
+  .onb-dlg .dlg-title { font-size: 20px; }
+  .onb-dlg .dlg-body { padding: 8px 16px 16px; }
+  .onb-dlg .dlg-foot { padding: 12px 16px; }
+  .onb-steptext { display: none; }
+  .onb-back.is-hidden { display: none; }
+  .onb-goal-row { grid-template-columns: minmax(0, 1fr); }
+  .onb-pace { margin-top: 0; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .onb-pace-v { order: 2; }
+  .onb-pace-s { order: 3; }
+  .onb-km { width: 132px; }
+  .onb-km .input { height: 44px; }
+  .onb-step-days .day-toggles { flex-wrap: nowrap; gap: 5px; }
+  .onb-step-days .day-toggle { flex: 1 1 0; width: auto; min-width: 44px; height: 52px; }
+}
+
+/* narrow phones: seven 44 px day toggles do not fit one row */
+@media (max-width: 400px) {
+  .onb-step-days .day-toggles { display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 6px; }
+  .onb-step-days .day-toggle { width: auto; }
+}

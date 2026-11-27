@@ -1,142 +1,126 @@
 <!doctype html>
-<html lang="cs">
+<html lang="cs" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self'">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0D0E11">
   <title>VEYVO</title>
-  <link rel="icon" href="../assets/veyvo-icon.png" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="../assets/veyvo-icon.png">
+  <link rel="stylesheet" href="styles/fonts.css">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/shell.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/motion.css">
+  <!-- page styles: one file per page module, owned by that module (prefix in brackets) -->
+  <link rel="stylesheet" href="styles/pages/home.css">          <!-- home- -->
+  <link rel="stylesheet" href="styles/pages/plan.css">          <!-- plan- -->
+  <link rel="stylesheet" href="styles/pages/progress.css">      <!-- prog- -->
+  <link rel="stylesheet" href="styles/pages/nutrition.css">     <!-- nut- -->
+  <link rel="stylesheet" href="styles/pages/run-dialog.css">    <!-- rd- -->
+  <link rel="stylesheet" href="styles/pages/recovery.css">      <!-- rec- -->
+  <link rel="stylesheet" href="styles/pages/workout-sheet.css"> <!-- ws- -->
+  <link rel="stylesheet" href="styles/pages/settings.css">      <!-- set- -->
+  <link rel="stylesheet" href="styles/pages/onboarding.css">    <!-- onb- -->
 </head>
 <body>
-  <div class="window-drag-region" aria-hidden="true"></div>
-  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand"><div class="brand-mark"><img src="../assets/veyvo-icon.png" alt="VEYVO"></div><div><strong>VEYVO</strong><span>RUNNING JOURNAL</span></div></div>
-      <nav id="nav">
-        <button class="nav-item active" data-page="home"><span>⌁</span>Přehled</button>
-        <button class="nav-item" data-page="plan"><span>◫</span>Můj plán</button>
-        <button class="nav-item" data-page="progress"><span>⌁</span>Výkonnost</button>
-      <button class="nav-item" data-page="nutrition" aria-label="Před během" title="Před během"><span aria-hidden="true">▤</span>Před během</button>
-      </nav>
-      <div class="side-card">
-        <div class="pulse-dot"></div><small>BĚŽECKÝ DENÍK</small>
-        <strong id="planStatusTitle">Zatím žádný běh</strong>
-        <p id="planStatusText">Zapiš první běh a sleduj svůj pokrok.</p>
+  <a class="skip-link" href="#main" data-i18n="ui.skip">Přeskočit na obsah</a>
+
+  <div class="app" id="app">
+    <!-- Sidebar (desktop + tablet). The brand row is the window drag area; nothing inside it is interactive. -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img class="brand-mark" src="../assets/veyvo-icon.png" alt="" width="28" height="28">
+        <span class="brand-name">VEYVO</span>
       </div>
-      <div class="sidebar-bottom">
-        <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv"><span id="themeIcon">☾</span><span id="themeText">Tmavý režim</span></button>
-        <button class="profile" id="profileMenuButton" aria-haspopup="menu" aria-expanded="false"><span class="avatar">PJ</span><span><b>Pepa</b><small>5K · sub 20:00</small></span></button>
-        <div class="profile-menu" id="profileMenu" role="menu" hidden>
-          <button role="menuitem" id="menuLight"><span>☀</span><span>Světlý režim<small>Jasné prostředí</small></span><i class="menu-check">✓</i></button>
-          <button role="menuitem" id="menuDark"><span>☾</span><span>Tmavý režim<small>Šetrnější večer</small></span><i class="menu-check">✓</i></button>
-          <div class="menu-separator"></div>
-          <button role="menuitem" id="openSettings"><span>⚙</span><span>Nastavení<small>Účet, aktualizace a data</small></span><i>›</i></button>
-        </div>
+
+      <button type="button" class="btn btn-side" data-action="log-run">
+        <span data-icon="plus"></span>
+        <span class="side-label" data-i18n="ui.nav.log">Zapsat běh</span>
+        <kbd class="kbd" aria-hidden="true">N</kbd>
+      </button>
+
+      <nav class="nav" id="nav" aria-label="Hlavní navigace" data-i18n-attr="aria-label:ui.nav.label">
+        <span class="nav-lane" aria-hidden="true"></span>
+        <a class="nav-item" href="#home" data-nav="home"><span data-icon="home"></span><span class="side-label" data-i18n="ui.nav.home">Přehled</span></a>
+        <a class="nav-item" href="#plan" data-nav="plan"><span data-icon="calendar"></span><span class="side-label" data-i18n="ui.nav.plan">Můj plán</span><span class="nav-badge" data-slot="next-badge" hidden></span></a>
+        <a class="nav-item" href="#progress" data-nav="progress"><span data-icon="trend"></span><span class="side-label" data-i18n="ui.nav.progress">Výkonnost</span></a>
+        <a class="nav-item" href="#nutrition" data-nav="nutrition"><span data-icon="checklist"></span><span class="side-label" data-i18n="ui.nav.nutrition">Před během</span></a>
+      </nav>
+
+      <div class="side-foot">
+        <div data-slot="connection" hidden></div>
+        <button type="button" class="nav-item" data-action="settings"><span data-icon="settings"></span><span class="side-label" data-i18n="ui.nav.settings">Nastavení</span></button>
+        <div class="me" data-slot="profile"></div>
       </div>
     </aside>
 
-    <main>
-      <header class="topbar"><div><span class="eyebrow" id="pageEyebrow">VEYVO</span><h1 id="pageTitle">Přehled</h1></div><div class="top-actions"><time id="localClock" class="date-pill"></time><button class="icon-btn" id="resetDemo" title="Smazat místní data">↻</button><button class="primary small" id="quickLog">＋ Zapsat běh</button></div></header>
-
-      <section class="page active" id="homePage">
-        <article class="panel baseline-intro" id="historyIntro" hidden><span class="eyebrow">TVÁ BĚŽECKÁ CESTA</span><h2>Pokračuj tam, kde jsi skončil</h2><p>Zapiš svůj poslední běh nebo připoj Stravu. Kalendář pak ukáže historii a další krok.</p><button type="button" class="primary" id="openFirstLog">Zapsat běh</button></article>
-        <div class="readiness hero-card">
-          <div class="readiness-copy"><span class="chip green" id="recoveryScoreLabel">REGENERACE · DOPLŇ CHECK-IN</span><h2>Dnešní regenerace</h2><p id="recoverySummary">Zapiš spánek a pocitovou únavu pro vlastní přehled.</p><div class="metric-row"><div><span>SPÁNEK</span><b id="recoverySleep">Nezapsáno</b></div><div><span>ÚNAVA</span><b id="recoveryFatigue">Nezapsáno</b></div><div><span>ZÁTĚŽ</span><b id="recoveryLoad">Nezapsáno</b></div></div><button type="button" class="recovery-action" id="openRecovery">＋ Zapsat regeneraci</button></div>
-          <div class="orb-wrap"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="score-orb"><span>↗</span><small>BĚH</small></div></div>
+    <div class="main-col">
+      <!-- Topbar: window drag area on desktop (interactive children are no-drag), compact header on phones. -->
+      <header class="topbar" id="topbar">
+        <img class="m-brand m-only" src="../assets/veyvo-icon.png" alt="" width="26" height="26">
+        <div class="topbar-titles">
+          <h1 class="page-title" id="page-title" tabindex="-1">Přehled</h1>
+          <p class="topbar-date" data-slot="date"></p>
         </div>
+        <div class="topbar-actions" data-slot="topbar-actions"></div>
+        <button type="button" class="m-profile m-only" data-action="more" data-slot="m-profile" aria-label="Více"></button>
+      </header>
 
-        <div class="section-heading"><div><span class="eyebrow">DALŠÍ BĚH</span><h2 id="todayPlanText"></h2></div><span class="date-pill" id="planPhaseLabel"></span></div>
-        <article class="workout-card">
-          <div class="workout-index">↗</div><div class="workout-main"><h3 id="todayWorkout"></h3></div><button class="start-btn" id="startWorkout"><span>▶</span> Spustit</button>
-        </article>
+      <main class="main-scroll" id="main" tabindex="-1">
+        <section class="page" data-page="home" aria-labelledby="page-title" hidden></section>
+        <section class="page" data-page="plan" aria-labelledby="page-title" hidden></section>
+        <section class="page" data-page="progress" aria-labelledby="page-title" hidden></section>
+        <section class="page" data-page="nutrition" aria-labelledby="page-title" hidden></section>
+      </main>
+    </div>
 
-      </section>
-
-      <section class="page" id="planPage">
-        <div class="page-intro"><div><span class="chip violet" id="planGoalChip">CÍL · 5 KM</span><h2>Další běh podle tvého výsledku.</h2><p id="planSummary">Po každém běhu uvidíš krátký návrh podle času a náročnosti.</p></div></div>
-        <article class="panel baseline-intro" id="nextRunIntro" hidden><span class="eyebrow">DALŠÍ KROK</span><h2 id="nextRunTitle" data-live-text></h2><p id="nextRunText" data-live-text></p><p class="baseline-hint">Pokud máš bolesti nebo se necítíš dobře, běh odlož.</p></article>
-        <p id="nextRunEmpty">Pro návrh dalšího běhu zapiš čas a náročnost běhu. Starší běhy zůstávají uložené.</p>
-        <article class="panel calendar-panel"><div class="calendar-toolbar"><div><span class="eyebrow">TRÉNINKOVÝ KALENDÁŘ</span><h3 id="calendarWeekLabel"></h3><p id="calendarWeekSummary"></p></div><div class="calendar-controls"><button type="button" id="calendarPrevious" aria-label="Předchozí týden">←</button><button type="button" id="calendarLatest">Poslední trénink</button><button type="button" id="calendarToday">Tento týden</button><button type="button" id="calendarNext" aria-label="Další týden">→</button></div></div><div class="run-calendar" id="calendarDays"></div></article>
-      </section>
-
-      <section class="page" id="progressPage">
-        <div class="page-intro"><div><span class="chip green">TVÉ BĚHY</span><h2>Přehled výkonů</h2><p>Skutečné záznamy z aplikace a Stravy.</p></div></div>
-        <div class="stats-grid"><div class="stat-card"><span>ZAZNAMENANÉ BĚHY</span><b id="progressCount">0</b></div><div class="stat-card"><span>ZNÁMÁ VZDÁLENOST</span><b id="progressDistance">0 km</b></div><div class="stat-card"><span>POSLEDNÍCH 7 DNŮ</span><b id="progressWeek">0 km</b></div><div class="stat-card"><span>NEJRYCHLEJŠÍCH 5 KM</span><b id="progressBest5k">Nezapsáno</b></div></div>
-        <div class="performance-columns"><article class="panel performance-history"><div class="performance-heading"><span class="eyebrow">AKTIVITY</span><h3>Historie běhů</h3></div><div id="progressRuns"></div></article>
-        <article class="panel performance-milestones"><div class="performance-heading"><span class="eyebrow">TVŮJ POKROK</span><h3>Milníky cesty k 5 km pod 20 minut</h3></div><div id="progressMilestones"></div></article></div>
-      </section>
-
-      <section class="page" id="connectionsPage">
-        <div class="page-intro"><div><span class="chip orange">DATOVÁ PROPOJENÍ</span><h2>Tvoje běhy. Automaticky.</h2><p>Propoj sportovní služby a měj všechny běhy na jednom místě.</p></div></div>
-        <div class="connection-grid">
-          <article class="connection-card strava-card">
-            <div class="connection-brand"><div class="strava-mark">▲</div><div><span class="eyebrow">SPORTOVNÍ SLUŽBA</span><h3>Strava</h3></div><span class="connection-status" id="stravaStatus">NEPŘIPOJENO</span></div>
-            <p>Automaticky importuje dokončené běhy, tempo, vzdálenost, čas, tep, splity a převýšení.</p>
-            <div class="permission-list"><div><span>↙</span><b>Import aktivit</b><small>Nové běhy a jejich podrobnosti</small></div><div><span>⌁</span><b>Přehled výkonu</b><small>Tempo, tep, splity a zátěž</small></div></div>
-            <button class="strava-button" id="connectStrava"><span>▲</span> Připojit přes Stravu</button>
-            <button class="disconnect-button" id="disconnectStrava" hidden>Odpojit účet</button><div class="strava-sync-state" id="stravaSyncState">Čeká na propojení</div>
-            <small class="privacy-note">Přihlášení probíhá přímo u Stravy. VEYVO nikdy nevidí ani neukládá tvoje heslo.</small>
-          </article>
-          <aside class="panel sync-panel"><span class="eyebrow">SYNCHRONIZACE</span><h3>Co se bude dít?</h3><div class="sync-step"><b>01</b><p><strong>Přihlásíš se u Stravy</strong><span>Ty rozhodneš, která oprávnění VEYVO získá.</span></p></div><div class="sync-step"><b>02</b><p><strong>Běhy se načtou</strong><span>Nové aktivity se při spuštění synchronizují.</span></p></div><div class="sync-step"><b>03</b><p><strong>Uvidíš své výsledky</strong><span>Běhy najdeš v přehledu výkonnosti.</span></p></div></aside>
-        </div>
-      </section>
-
-<section class="page" id="nutritionPage">
- <div class="page-intro"><div><span class="eyebrow">JÍDLO A PITÍ</span><h2>Před během</h2><p>Vyber trasu, svůj očekávaný čas a čas do startu.</p></div></div>
- <form class="panel nutrition-controls" id="nutritionForm">
-  <label>Vzdálenost<select id="nutritionDistance"><option value="6">6 km</option><option value="10">10 km</option><option value="21.1">Půlmaraton · 21,1 km</option><option value="42.2">Maraton · 42,2 km</option></select></label>
-  <label>Očekávaný čas běhu (minuty)<input id="nutritionMinutes" type="number" min="10" max="720" step="1" placeholder="Zadej svůj odhad" required aria-describedby="nutritionHint nutritionError"></label>
-  <label>Čas do startu<select id="nutritionTiming"><option value="meal">2–4 hodiny</option><option value="snack">1–2 hodiny</option><option value="soon">Méně než hodina</option></select></label>
-  <label>Plánovaný čas startu (volitelné)<input id="nutritionStart" type="time"><small>Pro časový rozpis, bez upozornění.</small></label>
-  <p id="nutritionHint">Čas zadej podle svého tempa. Vzdálenost sama nestačí k určení občerstvení.</p>
- </form>
- <p id="nutritionSaved" class="nutrition-save-status" role="status"></p>
- <p id="nutritionError" role="status">Doplň očekávaný čas běhu pro zobrazení doporučení.</p>
- <div id="nutritionResult" hidden aria-live="polite">
-  <article class="panel nutrition-overview"><span class="eyebrow">PŘÍPRAVA</span><h3 id="nutritionTitle"></h3><p id="nutritionPrep"></p></article>
-  <div class="nutrition-grid">
-   <article class="panel"><h3 id="nutritionMealTitle"></h3><p id="nutritionMealText"></p><ul id="nutritionFoods"></ul><small>Příklady, ne pevný jídelníček. Vyber podle alergií a vlastní snášenlivosti.</small></article>
-   <article class="panel"><h3>Co připravit na trasu</h3><p id="nutritionFuel"></p><p id="nutritionLate" hidden>Pokud jsi před dlouhým během nejedl, samotný nápoj těsně před startem nenahradí předchozí jídlo. Zvaž posunutí startu.</p><p>Připrav dostupné pití podle počasí, pocení a občerstvovacích míst.</p></article>
-  </div>
- </div>
- <article class="panel" id="nutritionSchedule"><h3>Časový plán přípravy</h3><p>Rozpis počítá zpět od zadaného startu. Aktuální doporučení jídla výše určuje tvoje volba času do startu.</p><ol id="nutritionTimeline"><li>Zadej plánovaný čas startu pro konkrétní časy jídel.</li></ol></article>
- <article class="panel" id="nutritionCalculator"><h3>Kolik občerstvení připravit</h3><p>Pomůcka pro běh delší než 75 minut. Zadej svůj vyzkoušený cíl a obsah sacharidů z obalu. Výsledek je přepočet, ne doporučená dávka.</p>
- <div class="nutrition-controls"><label>Tvůj cíl (g sacharidů / hodinu)<input id="nutritionRate" type="number" min="30" max="90" step="1" placeholder="Např. 30"></label><label>Sacharidy v jedné porci (g)<input id="nutritionServing" type="number" min="1" max="100" step="1" placeholder="Podle obalu"></label></div>
- <p id="nutritionBudget" role="status">Doplň délku běhu a údaje o občerstvení.</p><small>Součet zahrnuje všechny zdroje: gely, nápoj i jídlo. Počet porcí platí jen tehdy, pokud vše pokryješ zvoleným výrobkem. Nad 60 g/h využívej směs sacharidů až po nácviku snášenlivosti.</small></article>
- <div class="nutrition-grid">
- <article class="panel"><h3>Kontrola před odchodem</h3><p id="nutritionChecklistStatus" role="status"></p><div id="nutritionChecklist"></div><button type="button" class="recovery-action" id="nutritionResetChecklist">Odškrtnout seznam pro další běh</button></article>
- <article class="panel"><h3>Vlastní poznámky</h3><label for="nutritionNotes">Co ti sedělo a co příště změnit</label><textarea id="nutritionNotes" maxlength="2000" rows="6" placeholder="Jídlo, čas před startem, pití a pocit při běhu…"></textarea><small>Poznámky a nastavení zůstávají v tomto počítači. Ukládají se automaticky.</small></article>
- </div>
- <details class="panel nutrition-sources"><summary>Zdroje a zásady</summary><p>Obecné doporučení pro zdravé dospělé. Jídlo i občerstvení vyzkoušej v tréninku; při zdravotních omezeních plán prober s nutričním terapeutem. Před závodem nezkoušej nové potraviny.</p><p>Podklady ověřeny 1. 10. 2026:</p><ul>
- <li><a target="_blank" rel="noopener" href="https://www.nswis.com.au/nswis-news/food-choices-for-the-run-in-to-competition/">NSW Institute of Sport: načasování jídla</a></li>
- <li><a target="_blank" rel="noopener" href="https://www.ausport.gov.au/ais/nutrition/supplements/group_a/sports-foods2/sports-drink/how-and-when-do-i-use-it">Australian Institute of Sport: sacharidy během výkonu</a></li>
- <li><a target="_blank" rel="noopener" href="https://health.clevelandclinic.org/what-to-eat-when-youre-training-for-a-marathon">Cleveland Clinic: příprava na maraton</a></li>
- </ul></details>
-</section>
-    </main>
+    <!-- Bottom tab bar (phones, <= 760 px). -->
+    <nav class="tabbar" id="tabbar" aria-label="Hlavní navigace" data-i18n-attr="aria-label:ui.nav.label">
+      <a class="tab" href="#home" data-nav="home"><span data-icon="home"></span><span data-i18n="ui.tab.home">Přehled</span></a>
+      <a class="tab" href="#plan" data-nav="plan"><span data-icon="calendar"></span><span data-i18n="ui.tab.plan">Plán</span></a>
+      <button type="button" class="tab tab-log" data-action="log-run"><span class="tab-plus"><span data-icon="plus"></span></span><span data-i18n="ui.tab.log">Zapsat</span></button>
+      <a class="tab" href="#progress" data-nav="progress"><span data-icon="trend"></span><span data-i18n="ui.tab.progress">Výkonnost</span></a>
+      <button type="button" class="tab" data-action="more"><span data-icon="more"></span><span data-i18n="ui.tab.more">Více</span></button>
+    </nav>
   </div>
 
-  <dialog id="recoveryDialog"><form method="dialog" id="recoveryForm"><div class="modal-head"><div><span class="eyebrow">DENNÍ REGENERACE</span><h2>Jak se dnes cítíš?</h2></div><button value="cancel" class="close">×</button></div><p class="modal-copy">Zapiš spánek, únavu a bolest svalů podle skutečného pocitu.</p><label>Spánek (hodiny)<input id="recoverySleepInput" type="number" min="0" max="24" step="0.1" placeholder="např. 7,5" required></label><label>Únava <output id="recoveryFatigueOutput">3 / 10</output><input id="recoveryFatigueInput" type="range" min="1" max="10" value="3"></label><label>Bolest svalů <output id="recoverySorenessOutput">1 / 10</output><input id="recoverySorenessInput" type="range" min="0" max="10" value="1"></label><label>Poznámka<textarea id="recoveryNote" maxlength="1000" placeholder="Např. těžké nohy, dobrá regenerace…"></textarea></label><button class="primary full" value="default" id="saveRecovery">Uložit regeneraci</button></form></dialog>
-  <dialog id="logDialog"><form method="dialog" id="logForm"><div class="modal-head"><div><span class="eyebrow">ZÁZNAM TRÉNINKU</span><h2>Jak se běželo?</h2></div><button value="cancel" class="close">×</button></div><label>Datum běhu<input type="date" id="logDate" required></label><label>Typ tréninku<select id="logType"><option>Běh</option><option>Intervaly</option><option>Lehký běh</option><option>Tempo</option><option>Dlouhý běh</option></select></label><div class="form-grid"><label>Vzdálenost<input id="logDistance" type="number" min="0" step="0.01" value="6.4"><small>kilometrů</small></label><label>Čas<input id="logTime" value="34:12"><small>mm:ss</small></label></div><label>Jak náročný byl běh? <output id="effortOutput">6 / 10</output><input id="effort" type="range" min="1" max="10" value="6"></label><label>Poznámka<textarea id="logNote" placeholder="Jak ses cítil? Bolest, únava, počasí…"></textarea></label><button class="primary full" value="default" id="saveLog">Uložit běh</button></form></dialog>
+  <div id="dialog-root"></div>
+  <div class="toast-region" id="toast-root" aria-live="polite" aria-atomic="false"></div>
 
-  <dialog id="stravaDialog"><form method="dialog" id="stravaForm"><div class="modal-head"><div><span class="eyebrow">STRAVA OAUTH</span><h2>Propojit účet</h2></div><button value="cancel" class="close">×</button></div><div class="oauth-visual"><span>V</span><i>↔</i><span>▲</span></div><p class="modal-copy">VEYVO používá Strava aplikaci s Client ID <b>275720</b>. Nejdřív nastav ve Strava API „Authorization Callback Domain“ na <b>localhost</b>.</p><label>Strava Client Secret<input id="stravaClientSecret" type="password" autocomplete="off" placeholder="Zůstane šifrovaný pouze v tomto počítači"></label><label class="consent"><input type="checkbox" id="stravaConsent"> Povoluji načítání vlastních aktivit ze Stravy.</label><button class="strava-button full" value="default" id="authorizeStrava">Pokračovat na Stravu</button><small class="privacy-note">Tajný klíč a tokeny chrání systémové šifrování Windows. Neodesílají se do GitHubu ani VEYVO cloudu.</small></form></dialog>
-
-  <dialog id="settingsDialog" class="settings-dialog"><form method="dialog" id="settingsForm"><div class="modal-head"><div><span class="eyebrow">VEYVO</span><h2>Nastavení</h2></div><button value="cancel" class="close">×</button></div>
-    <div class="settings-tabs"><button type="button" class="active" data-settings-view="general">Obecné</button><button type="button" data-settings-view="connections">Propojení</button></div>
-    <section class="settings-section update-card" data-settings-panel="general"><div class="update-heading"><div class="update-symbol">↻</div><div><span class="eyebrow">AKTUALIZACE APLIKACE</span><h3>Měj VEYVO aktuální</h3><p>Nová verze se stáhne přímo v aplikaci.</p></div></div><div class="update-version-row"><div><span>NAINSTALOVANÁ VERZE</span><strong id="installedVersion">Načítám…</strong></div><span class="update-state-badge" id="updateStateBadge">PŘIPRAVENO</span></div><div class="update-status" id="updateResult" data-state="idle" role="status"><span class="update-status-icon" id="updateStatusIcon">✓</span><div><strong id="updateStatusTitle">Připraveno ke kontrole</strong><p id="updateStatusDetail">Zjisti, jestli je dostupná novější verze.</p></div></div><div class="update-progress" id="updateProgress" hidden><span id="updateProgressBar"></span></div><button type="button" class="primary update-action" id="checkUpdates">Zkontrolovat aktualizace <span>→</span></button></section>
-    <section class="settings-section language-section" data-settings-panel="general"><div class="settings-section-head"><div class="language-mark">文</div><div><h3>Jazyk aplikace</h3><p>Změna se projeví okamžitě a zůstane uložená.</p></div></div><label class="language-select-label">Jazyk<select id="appLanguage"><option value="cs">Čeština</option><option value="en">English</option></select></label></section>
-    <section class="settings-section compact" data-settings-panel="general"><span class="eyebrow">VZHLED</span><div class="appearance-options"><button type="button" data-set-theme="light">☀ Světlý</button><button type="button" data-set-theme="dark">☾ Tmavý</button></div></section>
-
-    <section class="settings-section settings-connections" data-settings-panel="connections" hidden><div class="settings-section-head"><div class="strava-mark mini">▲</div><div><h3>Strava</h3><p>Import běhů, tempa, tepu, splitů a převýšení.</p></div><span class="connection-status" id="settingsStravaStatus">NEPŘIPOJENO</span></div><button type="button" class="strava-button settings-strava-button" id="settingsOpenStrava">Nastavit propojení Stravy</button></section>
-  </form></dialog>
-  <div class="toast" id="toast"></div>
-  <script src="time-context.js"></script>
+  <!-- core (pure, UMD) -->
+  <script src="vendor/workoutkit.js"></script>
+  <script src="core/format.js"></script>
+  <script src="core/i18n.js"></script>
+  <script src="core/runs-model.js"></script>
+  <script src="core/store.js"></script>
+  <script src="core/workouts.js"></script>
+  <script src="core/export/fit.js"></script>
+  <script src="core/export/apple.js"></script>
+  <script src="core/export/zwo.js"></script>
+  <script src="core/export/intervals.js"></script>
   <script src="training-context.js"></script>
-  <script src="calendar-context.js"></script>
   <script src="nutrition-context.js"></script>
-  <script src="journal.js"></script>
-  <script src="nutrition-ui.js"></script>
+  <script src="platform.js"></script>
+  <!-- UI runtime -->
+  <script src="ui/dom.js"></script>
+  <script src="ui/icons.js"></script>
+  <script src="ui/motion.js"></script>
+  <script src="ui/charts.js"></script>
+  <script src="ui/app.js"></script>
+  <!-- page modules (each registers itself with VeyvoUI.app) -->
+  <script src="ui/home.js"></script>
+  <script src="ui/plan.js"></script>
+  <script src="ui/progress.js"></script>
+  <script src="ui/run-dialog.js"></script>
+  <script src="ui/recovery.js"></script>
+  <script src="ui/workout-sheet.js"></script>
+  <script src="ui/settings.js"></script>
+  <script src="ui/onboarding.js"></script>
+  <script src="ui/nutrition.js"></script>
+  <!-- last -->
+  <script src="ui/boot.js"></script>
 </body>
 </html>

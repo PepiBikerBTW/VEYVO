@@ -1,0 +1,112 @@
+/* VEYVO motion: keyframes + utility classes. Rules (owner, docs/launch-readiness.md):
+ *  - purposeful and polished: page/card enter, count-ups, bar grow, line draw-in, progress fills,
+ *    micro-interactions on buttons and check-ins;
+ *  - transform and opacity only, <= 450 ms (loading shimmer/spinners are the only loops);
+ *  - everything switches off with prefers-reduced-motion, <html data-motion="off"> (screenshots,
+ *    tests) and inside any container marked data-anim="off" (VeyvoUI.app re-renders without replay).
+ */
+
+@keyframes veyvo-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes veyvo-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes veyvo-pop { 0% { opacity: 0; transform: scale(.86); } 100% { opacity: 1; transform: none; } }
+@keyframes veyvo-grow-y { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes veyvo-grow-x { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes veyvo-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-dialog-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-dialog-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(.985); } }
+@keyframes veyvo-sheet-in { from { opacity: .4; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-sheet-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(32px); } }
+@keyframes veyvo-bottom-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes veyvo-bottom-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes veyvo-toast-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px); } }
+@keyframes veyvo-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes veyvo-seg-in { from { opacity: 0; transform: scaleY(.3); } to { opacity: 1; transform: none; } }
+@keyframes veyvo-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes veyvo-spin { to { transform: rotate(360deg); } }
+@keyframes veyvo-shimmer { to { transform: translateX(100%); } }
+@keyframes veyvo-blink { 50% { opacity: .35; } }
+
+/* ---------------------------------------------------------------- utilities */
+
+/* .reveal: element rises in. --i (set by VeyvoUI.motion.reveal or by hand) staggers it. */
+.reveal {
+  animation: veyvo-rise var(--dur-4) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+/* .stagger: every direct child rises in, one after another (nth-child fallback up to 12). */
+.stagger > * {
+  animation: veyvo-rise var(--dur-4) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+.stagger > :nth-child(2) { --i: 1; }  .stagger > :nth-child(3) { --i: 2; }  .stagger > :nth-child(4) { --i: 3; }
+.stagger > :nth-child(5) { --i: 4; }  .stagger > :nth-child(6) { --i: 5; }  .stagger > :nth-child(7) { --i: 6; }
+.stagger > :nth-child(8) { --i: 7; }  .stagger > :nth-child(9) { --i: 8; }  .stagger > :nth-child(10) { --i: 9; }
+.stagger > :nth-child(11) { --i: 10; } .stagger > :nth-child(n + 12) { --i: 11; }
+.fade-in { animation: veyvo-fade-in var(--dur-3) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+.pop { animation: veyvo-pop var(--dur-3) var(--ease-spring) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+
+/* chart marks: bars grow from their base, lanes/fills from the left (works on SVG via fill-box) */
+.grow-y {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: veyvo-grow-y var(--dur-5) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.grow-x {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: veyvo-grow-x var(--dur-5) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+/* line draw-in: VeyvoUI.charts clips a line with a rect that carries .draw-line (transform only) */
+.draw-line {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: veyvo-grow-x var(--dur-5) var(--ease-in-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+/* progress fills: set --f (0..1); VeyvoUI.motion.fillBar animates it */
+.fill-x { transform-origin: 0 50%; transform: scaleX(var(--f, 0)); }
+.meter.is-anim > i { animation: veyvo-seg-in var(--dur-2) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 22ms); transform-origin: 50% 100%; }
+.page-enter { animation: veyvo-page-in var(--dur-3) var(--ease-out) both; }
+
+/* one-shot highlight after save (VeyvoUI.motion.flash) */
+.is-flash::after, .is-flash > td::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--accent-soft-2);
+  pointer-events: none;
+  animation: veyvo-flash var(--dur-5) var(--ease-in) .25s both;
+}
+.is-flash > td::after { animation-delay: .25s; }
+tr.is-flash::after { display: none; }
+
+/* ---------------------------------------------------------------- kill switches */
+[data-anim="off"] .reveal, [data-anim="off"] .stagger > *, [data-anim="off"] .fade-in, [data-anim="off"] .pop,
+[data-anim="off"] .grow-y, [data-anim="off"] .grow-x, [data-anim="off"] .draw-line, [data-anim="off"] .meter > i,
+[data-anim="off"] .page-enter {
+  animation: none !important;
+}
+
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after,
+:root[data-motion="off"] ::backdrop {
+  animation-duration: .01ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop {
+    animation-duration: .01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

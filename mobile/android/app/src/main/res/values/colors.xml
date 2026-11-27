@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- VEYVO graphite: dark theme background token, index.html first paint, capacitor.config.json android.backgroundColor -->
+    <color name="veyvoBackground">#0D0E11</color>
+</resources>

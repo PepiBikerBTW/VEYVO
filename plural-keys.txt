@@ -1,0 +1,29 @@
+probe-plural-keys
+common.count.days :: 1 den / 5 dní
+common.count.hours :: 1 hodina / 5 hodin
+common.count.km :: 1 kilometr / 5 kilometrů
+common.count.minutes :: 1 minuta / 5 minut
+common.count.runs :: 1 běh / 5 běhů
+common.count.seconds :: 1 sekunda / 5 sekund
+common.count.weeks :: 1 týden / 5 týdnů
+common.count.workouts :: 1 trénink / 5 tréninků
+nutrition.calc.servingsWord :: porce / porcí
+nutrition.calc.squaresAria :: 1 porce / 5 porcí
+plan.week.ago :: Před 1 týdnem / Před 5 týdny
+plan.week.ahead :: Za 1 týden / Za 5 týdnů
+settings.data.plannedLabel :: naplánovaný trénink / naplánovaných tréninků
+settings.data.preview.newRuns :: z toho 1 nový / z toho 5 nových
+settings.data.preview.warnings :: 1 záznam se nepodařilo načíst a obnoví se bez něj. / 5 záznamů se nepodařilo načíst a obnoví se bez nich.
+settings.data.recoveryLabel :: záznam regenerace / záznamů regenerace
+settings.data.runsLabel :: běh / běhů
+settings.profile.daysCount :: 1 den v týdnu / 5 dní v týdnu
+settings.strava.ignored :: 1 smazaný běh ze Stravy se znovu nenačítá. / 5 smazaných běhů ze Stravy se znovu nenačítá.
+store.notice.runsAdded :: Přidán 1 běh. / Přidáno 5 běhů.
+store.notice.runsDropped :: 1 běh se nepodařilo načíst. / 5 běhů se nepodařilo načíst.
+store.notice.runsMerged :: 1 běh ze Stravy byl spojen s ručním zápisem. / 5 běhů ze Stravy bylo spojeno s ručními zápisy.
+store.notice.runsUnchanged :: 1 běh už byl uložený. / 5 běhů už bylo uloženo.
+store.notice.runsUpdated :: Doplněn 1 běh. / Doplněno 5 běhů.
+store.notice.stravaRestored :: 1 smazaný běh ze Stravy se může znovu načíst. / 5 smazaných běhů ze Stravy se může znovu načíst.
+ui.strava.imported :: Ze Stravy přibyl 1 běh. / Ze Stravy přibylo 5 běhů.
+workout.est.open :: Nezahrnuje 1 krok do stisku Lap. / Nezahrnuje 5 kroků do stisku Lap.
+probe-plural-keys: 0 checks passed in 0.6 s
