@@ -9,3 +9,11 @@ mobile/www/
 mobile/android/app/src/main/assets/public/
 *.keystore
 *.jks
+.DS_Store
+
+# Store build output: app bundles and archives are built locally or in CI, never committed
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+mobile/android/app/release/

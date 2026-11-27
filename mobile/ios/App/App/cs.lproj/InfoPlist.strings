@@ -1,0 +1,3 @@
+/* Lokalizované hodnoty Info.plist (čeština). Udržujte v souladu s en.lproj/InfoPlist.strings a Info.plist. */
+"CFBundleDisplayName" = "VEYVO";
+"NSHealthShareUsageDescription" = "VEYVO načítá z aplikace Zdraví tvoje běžecké tréninky (datum, vzdálenost, čas a tep) a přidává je do tvého běžeckého deníku v tomto iPhonu. Data zůstávají jen v tvém zařízení.";

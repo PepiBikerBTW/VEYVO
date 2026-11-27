@@ -5,6 +5,12 @@
   "android": {
     "backgroundColor": "#0D0E11"
   },
+  "ios": {
+    "backgroundColor": "#0D0E11",
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "preferredContentMode": "mobile"
+  },
   "plugins": {
     "CapacitorHttp": {
       "enabled": false

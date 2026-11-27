@@ -83,3 +83,58 @@ jobs:
         if: env.HAS_SIGNING_KEY == 'true'
         with:
           files: VEYVO-Android-*.apk
+
+  # Google Play: the 'play' channel (no GitHub updater, no Strava; see src/build-info.js) as an app
+  # bundle signed with the upload key. It is kept as a workflow artifact for a manual upload in Play
+  # Console and is never attached to the public GitHub release.
+  play-bundle:
+    needs: version-guard
+    runs-on: ubuntu-latest
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.VEYVO_ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Skip unsigned bundle
+        if: env.HAS_SIGNING_KEY != 'true'
+        run: echo "::warning::VEYVO_ANDROID_KEYSTORE_BASE64 secret is not set, so no Google Play bundle (AAB) is built."
+      - name: Install mobile dependencies
+        if: env.HAS_SIGNING_KEY == 'true'
+        working-directory: mobile
+        run: npm ci
+      - name: Build signed Play bundle
+        if: env.HAS_SIGNING_KEY == 'true'
+        working-directory: mobile
+        env:
+          VEYVO_KEYSTORE_BASE64: ${{ secrets.VEYVO_ANDROID_KEYSTORE_BASE64 }}
+          VEYVO_KEYSTORE_PASSWORD: ${{ secrets.VEYVO_ANDROID_KEYSTORE_PASSWORD }}
+          VEYVO_KEY_ALIAS: ${{ secrets.VEYVO_ANDROID_KEY_ALIAS }}
+          VEYVO_KEY_PASSWORD: ${{ secrets.VEYVO_ANDROID_KEY_PASSWORD }}
+          # Tag builds use build number 0 (0.4.1 -> versionCode 40100). A second upload of the same
+          # version needs a local build with VEYVO_BUILD_NUMBER=1, 2, ... (mobile/android/app/build.gradle).
+          VEYVO_BUILD_NUMBER: "0"
+        run: |
+          echo "$VEYVO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/veyvo-upload.jks"
+          export VEYVO_KEYSTORE_PATH="$RUNNER_TEMP/veyvo-upload.jks"
+          npm run sync:play
+          cd android
+          chmod +x gradlew && ./gradlew bundleRelease --no-daemon
+          rm -f "$RUNNER_TEMP/veyvo-upload.jks"
+          aab=app/build/outputs/bundle/release/app-release.aab
+          keytool -printcert -jarfile "$aab" | grep -q "SHA256:" || { echo "::error::$aab is not signed" >&2; exit 1; }
+          version="$(node -p "require('../../package.json').version")"
+          mkdir -p "$RUNNER_TEMP/play"
+          cp "$aab" "$RUNNER_TEMP/play/VEYVO-Play-${version}.aab"
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_SIGNING_KEY == 'true'
+        with:
+          name: VEYVO-Play-${{ github.ref_name }}
+          path: ${{ runner.temp }}/play/*.aab
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,58 @@
+# Publishes site/ (landing page, privacy policy, support) to GitHub Pages:
+#   https://pepibikerbtw.github.io/VEYVO/            landing
+#   https://pepibikerbtw.github.io/VEYVO/privacy/    privacy policy (linked from the app and both stores)
+#   https://pepibikerbtw.github.io/VEYVO/support/    support URL for both stores
+# One-time setup by the owner: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer push replaces a queued one, a running one finishes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the site
+        run: |
+          set -eu
+          for page in site/index.html site/privacy/index.html site/support/index.html; do
+            test -s "$page" || { echo "missing $page"; exit 1; }
+          done
+          # No unfilled placeholders and nothing loaded from other hosts (fonts and scripts are local).
+          if grep -rn '{{' site --include='*.html' --include='*.css' --include='*.js'; then
+            echo 'unfilled placeholder in site/'; exit 1
+          fi
+          if grep -rnE '<(script|link)[^>]+(src|href)="https?://' site --include='*.html'; then
+            echo 'external script or stylesheet in site/'; exit 1
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

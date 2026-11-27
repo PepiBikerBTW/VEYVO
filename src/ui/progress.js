@@ -146,6 +146,7 @@
         title: 'Výkonnost se počítá z tvých běhů',
         text: 'Zapiš první běh nebo připoj Stravu. Pak tu uvidíš tempo každého běhu, kilometry po týdnech, osobní rekordy a milníky.',
         textLocal: 'Zapiš první běh nebo obnov zálohu z Windows. Pak tu uvidíš tempo každého běhu, kilometry po týdnech, osobní rekordy a milníky.',
+        textStore: 'Zapiš první běh nebo obnov zálohu VEYVO. Pak tu uvidíš tempo každého běhu, kilometry po týdnech, osobní rekordy a milníky.',
         log: 'Zapsat běh',
         strava: 'Připojit Stravu'
       }
@@ -262,6 +263,7 @@
         title: 'Progress is calculated from your runs',
         text: 'Log your first run or connect Strava. You will then see the pace of every run, kilometres per week, personal records and milestones.',
         textLocal: 'Log your first run or restore a backup from Windows. You will then see the pace of every run, kilometres per week, personal records and milestones.',
+        textStore: 'Log your first run or restore a VEYVO backup. You will then see the pace of every run, kilometres per week, personal records and milestones.',
         log: 'Log a run',
         strava: 'Connect Strava'
       }
@@ -968,7 +970,7 @@
     const actions = [h('button.btn.btn-primary', { type: 'button', 'data-action': 'log-run', 'data-key': 'prog-empty-log' }, icons.get('plus'), t('empty.log'))];
     if (app.strava.supported) actions.push(h('button.btn.btn-secondary', { type: 'button', 'data-action': 'connection', 'data-key': 'prog-empty-strava' }, icons.get('link'), t('empty.strava')));
     return h('section.card.card-pad-lg.card-glow.prog-empty.reveal', ctx.components.create('empty', {
-      icon: 'trend', title: t('empty.title'), text: t(app.strava.supported ? 'empty.text' : 'empty.textLocal'), actions
+      icon: 'trend', title: t('empty.title'), text: t(app.strava.supported ? 'empty.text' : app.build.store ? 'empty.textStore' : 'empty.textLocal'), actions
     }));
   }
 

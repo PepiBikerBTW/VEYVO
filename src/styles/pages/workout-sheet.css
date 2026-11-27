@@ -297,6 +297,35 @@ dialog.ws-dlg.dlg-sheet .dlg-panel { --dlg-w: 640px; }
 .ws-unofficial { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
 .ws-unofficial .ic { margin-top: 1px; }
 
+/* store build on Android: the .fit file behind a disclosure ("Pro pokročilé: USB z počítače") */
+.ws-adv { border-top: 1px solid var(--line-soft); }
+.ws-adv-sum {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding-top: 10px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--text-muted);
+  border-radius: var(--r-sm);
+}
+.ws-adv-sum::-webkit-details-marker { display: none; }
+.ws-adv-sum::marker { content: ""; }
+.ws-adv-sum:hover { color: var(--text); }
+.ws-adv-chev { flex: none; color: var(--text-faint); transition: transform var(--dur-3) var(--ease-out); }
+.ws-adv-sum:hover .ws-adv-chev { color: var(--text); }
+.ws-adv[open] .ws-adv-chev { transform: rotate(90deg); }
+.ws-adv-body { display: flex; flex-direction: column; gap: 14px; padding: 8px 0 2px; }
+.ws-adv[open] > .ws-adv-body { animation: veyvo-fade-in var(--dur-3) var(--ease-out) both; }
+.ws-adv-lead { font-size: 13px; line-height: 1.5; color: var(--text-muted); max-width: 64ch; }
+
+/* iPhone with WorkoutKit: "Naplánovat do hodinek" under the main "Přidat do Apple Watch" button */
+.ws-watch-plan {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.ws-watch-plan .ws-status { align-self: stretch; }
+.ws-watch-plan-text { font-size: 13px; line-height: 1.5; color: var(--text-muted); max-width: 64ch; }
+
 /* paths (Internal Storage > GARMIN > NewFiles) and file names */
 .ws-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; vertical-align: baseline; }
 .ws-path-seg {

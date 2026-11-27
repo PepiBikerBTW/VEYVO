@@ -28,25 +28,30 @@ test('loads in Node as the web adapter with the full VeyvoPlatform shape', async
   }
   for (const [ns, methods] of Object.entries({
     secrets: ['get', 'set', 'remove'], backup: ['snapshot', 'list', 'read'], updates: ['check', 'install', 'onStatus'],
-    strava: ['status', 'connect', 'sync', 'disconnect', 'onEvent'], garmin: ['findDrives', 'copy']
+    strava: ['status', 'connect', 'sync', 'disconnect', 'onEvent'], garmin: ['findDrives', 'copy'],
+    watch: ['check', 'preview', 'schedule', 'listScheduled', 'clearScheduled'], health: ['isAvailable', 'requestAuthorization', 'importRuns']
   })) {
     assert.equal(typeof Platform[ns].supported, 'boolean', ns + '.supported');
     for (const method of methods) assert.equal(typeof Platform[ns][method], 'function', ns + '.' + method);
   }
-  assert.deepEqual(Object.keys(Platform.supports).sort(), ['backup', 'encryptedSecrets', 'garmin', 'http', 'notify', 'saveFile', 'secrets', 'share', 'showInFolder', 'strava', 'titleBar', 'updates']);
+  assert.deepEqual(Object.keys(Platform.supports).sort(), ['backup', 'encryptedSecrets', 'garmin', 'health', 'http', 'notify', 'saveFile', 'secrets', 'share', 'showInFolder', 'strava', 'titleBar', 'updates', 'watch']);
+  assert.equal(Platform.watch.supported, false);
+  assert.equal(Platform.health.supported, false);
   assert.ok(Object.isFrozen(Platform.supports));
   assert.ok(Object.isFrozen(U));
   assert.equal(await Platform.version(), '0.0.0-web');
 });
 
-test('detect: desktop needs window.veyvo.saveFile, android needs a native Capacitor Android shell', () => {
+test('detect: desktop needs window.veyvo.saveFile, android and ios need a native Capacitor shell', () => {
   assert.equal(Platform.detect(undefined), 'web');
   assert.equal(Platform.detect({}), 'web');
   assert.equal(Platform.detect({ veyvo: { version() {} } }), 'web', 'the 0.3 preload without saveFile is not a 0.4 desktop');
   assert.equal(Platform.detect({ veyvo: { saveFile() {} } }), 'desktop');
   assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' } }), 'android');
   assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => false, getPlatform: () => 'web' } }), 'web');
-  assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' } }), 'web');
+  assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' } }), 'ios');
+  assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => false, getPlatform: () => 'ios' } }), 'web');
+  assert.equal(Platform.detect({ Capacitor: { isNativePlatform: () => true, getPlatform: () => 'electron' } }), 'web');
   assert.equal(Platform.detect({ Capacitor: { isNativePlatform() { throw new Error('broken'); } } }), 'web');
 });
 
@@ -950,4 +955,171 @@ test('android: the status and navigation bar icons follow the app theme (SystemB
   const colors = fs.readFileSync(path.join(__dirname, '..', 'mobile', 'android', 'app', 'src', 'main', 'res', 'values', 'colors.xml'), 'utf8');
   assert.match(colors, /name="veyvoBackground">#0D0E11</);
   assert.equal(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'mobile', 'capacitor.config.json'), 'utf8')).plugins.SystemBars.style, 'DARK');
+});
+
+// ---------------------------------------------------------------- iOS (Capacitor + the app's Swift plugins)
+
+globalThis.VeyvoWorkouts = globalThis.VeyvoWorkouts || require('../src/core/workouts.js');
+globalThis.VeyvoApple = globalThis.VeyvoApple || require('../src/core/export/apple.js');
+const UUID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/;
+const IOS17_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+const IOS16_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+
+function fakeIos(options = {}) {
+  const fake = fakeAndroid(options);
+  const calls = fake.log;
+  fake.win.Capacitor.getPlatform = () => 'ios';
+  fake.win.navigator = { userAgent: options.userAgent || IOS17_UA };
+  fake.win.VEYVO_BUILD = { channel: options.channel || 'appstore' };
+  if (options.watch !== false) {
+    fake.Plugins.VeyvoWorkoutKit = {
+      async isSupported() { calls.push(['wk.isSupported']); return options.wkSupported || { supported: true, preview: true, schedule: true, maxScheduled: 15 }; },
+      async preview(o) { calls.push(['wk.preview', o]); if (options.wkError) throw Object.assign(new Error('nope'), { code: options.wkError }); return { shown: true }; },
+      async schedule(o) { calls.push(['wk.schedule', o]); if (options.wkError) throw Object.assign(new Error('nope'), { code: options.wkError }); return { scheduled: true, id: o.planId, date: o.date, replaced: 1 }; },
+      async listScheduled() { return { workouts: [{ id: 'A', date: '2026-11-29', time: '07:00', name: 'Tempo', complete: false }, 'junk', { id: 7, date: 'x' }] }; },
+      async clearScheduled() { return { removed: 2 }; }
+    };
+  }
+  if (options.health !== false) {
+    fake.Plugins.VeyvoHealth = {
+      async isAvailable() { return { available: options.hkAvailable !== false }; },
+      async requestAuthorization() { calls.push(['hk.auth']); return { requested: true }; },
+      async importRuns(o) {
+        calls.push(['hk.import', o]);
+        if (options.hkError) throw Object.assign(new Error('Authorization not determined'), { code: 'UNIMPLEMENTED' });
+        return { runs: [{ healthId: 'A', date: '2026-11-24' }, null, 'x'] };
+      }
+    };
+  }
+  return fake;
+}
+
+const IOS_WORKOUT = {
+  id: 'lib-intervals400-2026-11-29', name: 'Úseky 6× 400 m', sport: 'running', date: '2026-11-29', source: 'library',
+  steps: [
+    { kind: 'step', intensity: 'warmup', duration: { type: 'time', seconds: 600 }, target: { type: 'open' } },
+    { kind: 'repeat', count: 6, steps: [
+      { kind: 'step', intensity: 'active', duration: { type: 'distance', meters: 400 }, target: { type: 'pace', fastSecPerKm: 230, slowSecPerKm: 240 } },
+      { kind: 'step', intensity: 'rest', duration: { type: 'time', seconds: 90 }, target: { type: 'open' } }
+    ] },
+    { kind: 'step', intensity: 'cooldown', duration: { type: 'open' }, target: { type: 'hr', lowBpm: 110, highBpm: 140 } }
+  ]
+};
+
+test('ios adapter: Capacitor plugins as on Android, no updater in any channel, watch and health from the Swift plugins', async () => {
+  for (const channel of ['appstore', 'github']) {
+    const ios = Platform.create(fakeIos({ channel }).win);
+    assert.equal(ios.kind, 'ios');
+    assert.equal(ios.updates.supported, false, channel + ': the App Store installs updates');
+    assert.equal(ios.supports.updates, false);
+    assert.equal(ios.strava.supported, false);
+    assert.equal(ios.garmin.supported, false);
+    assert.equal(ios.secrets.encrypted, false, 'Preferences is UserDefaults');
+    assert.equal(ios.supports.watch, true);
+    assert.equal(ios.supports.health, true);
+  }
+  const fake = fakeIos();
+  const ios = Platform.create(fake.win);
+  assert.equal(ios.build.channel, 'appstore');
+  assert.deepEqual([...U.httpHostsFor(ios.build.channel)], ['intervals.icu']);
+  const shared = await ios.saveFile({ name: 'plan.txt', data: 'Běh' });
+  assert.equal(shared.shared, true);
+  await rejectsWith(ios.http({ url: 'https://api.github.com/repos/x/y/releases/latest' }), 'host_not_allowed');
+
+  // without the native plugins (an older binary) everything degrades instead of throwing
+  const bare = Platform.create(fakeIos({ watch: false, health: false }).win);
+  assert.equal(bare.watch.supported, false);
+  assert.equal(bare.health.supported, false);
+  assert.equal(bare.supports.watch, false);
+  await rejectsWith(bare.watch.preview(IOS_WORKOUT), 'unsupported');
+  assert.equal(await bare.health.isAvailable(), false);
+
+  // Android never gets the iOS plugins even if a page defines them
+  const android = fakeAndroid();
+  android.Plugins.VeyvoWorkoutKit = fakeIos().Plugins.VeyvoWorkoutKit;
+  assert.equal(Platform.create(android.win).watch.supported, false);
+});
+
+test('ios watch: preview and schedule send the VEYVO workout as JSON with Apple step names and a stable plan id', async () => {
+  const fake = fakeIos();
+  const ios = Platform.create(fake.win);
+  assert.equal(ios.watch.supported, true);
+  assert.equal(ios.watch.canSchedule, true);
+  assert.deepEqual(await ios.watch.check(), { supported: true, schedule: true, maxScheduled: 15 });
+
+  assert.deepEqual(await ios.watch.preview(IOS_WORKOUT, { indoor: true, locale: 'cs' }), { shown: true });
+  const sent = fake.log.find(e => e[0] === 'wk.preview')[1];
+  assert.equal(sent.indoor, true);
+  assert.match(sent.planId, UUID_RE);
+  const model = JSON.parse(sent.workoutJson);
+  assert.deepEqual(Object.keys(model), ['id', 'name', 'steps', 'date']);
+  assert.equal(model.name, 'Úseky 6× 400 m');
+  assert.equal(model.steps[0].label, undefined, 'the first warm-up is Apple\'s own warm-up: no name needed');
+  assert.equal(model.steps[1].steps[1].label, 'Pauza', 'a rest step is named, Apple only knows work and recovery');
+  assert.equal(model.steps[1].steps[0].label, undefined);
+  assert.deepEqual(model.steps[1].steps[0].target, { type: 'pace', fastSecPerKm: 230, slowSecPerKm: 240 });
+  assert.equal(model.steps[2].label, undefined);
+  assert.equal(JSON.parse(U.watchPayload(IOS_WORKOUT, { locale: 'en' }).workoutJson).steps[1].steps[1].label, 'Rest');
+
+  const r = await ios.watch.schedule(IOS_WORKOUT, '2026-11-29', { indoor: false });
+  const scheduled = fake.log.find(e => e[0] === 'wk.schedule')[1];
+  assert.equal(scheduled.date, '2026-11-29');
+  assert.equal(scheduled.hour, 7);
+  assert.equal(scheduled.indoor, false);
+  assert.deepEqual(r, { scheduled: true, id: scheduled.planId, date: '2026-11-29', replaced: 1 });
+  assert.equal(U.watchPayload(IOS_WORKOUT, { date: '2026-11-29' }).planId, scheduled.planId, 'same workout + day = same plan id');
+  assert.notEqual(U.watchPayload(IOS_WORKOUT, { date: '2026-11-30' }).planId, scheduled.planId);
+  await rejectsWith(ios.watch.schedule(IOS_WORKOUT, '29.11.2026'), 'watch_date');
+  await rejectsWith(ios.watch.preview({ id: 'x', name: 'x', sport: 'running', source: 'custom', steps: [] }), 'watch_invalid');
+  await rejectsWith(ios.watch.preview(null), 'watch_invalid');
+
+  assert.deepEqual(await ios.watch.listScheduled(), [
+    { id: 'A', date: '2026-11-29', time: '07:00', name: 'Tempo', complete: false },
+    { id: null, date: null, time: null, name: '', complete: false }
+  ]);
+  assert.deepEqual(await ios.watch.clearScheduled(), { removed: 2 });
+
+  // native error codes survive; anything else becomes watch_failed
+  await rejectsWith(Platform.create(fakeIos({ wkError: 'watch_denied' }).win).watch.schedule(IOS_WORKOUT, '2026-11-29'), 'watch_denied');
+  await rejectsWith(Platform.create(fakeIos({ wkError: 'UNAVAILABLE' }).win).watch.preview(IOS_WORKOUT), 'watch_failed');
+});
+
+test('ios watch below iOS 17: not supported from the user agent, the plugin answer wins after check()', async () => {
+  const old = Platform.create(fakeIos({ userAgent: IOS16_UA, wkSupported: { supported: false, schedule: false } }).win);
+  assert.equal(old.watch.supported, false);
+  await rejectsWith(old.watch.preview(IOS_WORKOUT), 'watch_unsupported');
+  assert.deepEqual(await old.watch.check(), { supported: false, schedule: false, maxScheduled: null });
+  const noScheduler = Platform.create(fakeIos({ wkSupported: { supported: true, schedule: false } }).win);
+  await noScheduler.watch.check();
+  assert.equal(noScheduler.watch.supported, true);
+  assert.equal(noScheduler.watch.canSchedule, false);
+  await rejectsWith(noScheduler.watch.schedule(IOS_WORKOUT, '2026-11-29'), 'watch_unsupported');
+  assert.equal(U.iosMajorVersion(IOS17_UA), 17);
+  assert.equal(U.iosMajorVersion(IOS16_UA), 16);
+  assert.equal(U.iosMajorVersion('Mozilla/5.0 (Windows NT 10.0)'), null);
+  assert.equal(U.iosMajorVersion(undefined), null);
+});
+
+test('ios health: availability, permission and importRuns rows for VeyvoStore.importHealthRuns', async () => {
+  const fake = fakeIos();
+  const ios = Platform.create(fake.win);
+  assert.equal(await ios.health.isAvailable(), true);
+  assert.equal(await Platform.create(fakeIos({ hkAvailable: false }).win).health.isAvailable(), false);
+  assert.deepEqual(await ios.health.requestAuthorization(), { requested: true });
+  const rows = await ios.health.importRuns({ since: '2026-08-29T08:00:00.000Z' });
+  assert.deepEqual(rows, [{ healthId: 'A', date: '2026-11-24' }], 'only objects reach the store');
+  assert.deepEqual(fake.log.find(e => e[0] === 'hk.import')[1], { since: '2026-08-29T08:00:00.000Z', limit: U.HEALTH_MAX_ROWS });
+  await rejectsWith(ios.health.importRuns({ since: 'yesterday' }), 'invalid_request');
+  await rejectsWith(ios.health.importRuns(), 'invalid_request');
+  await rejectsWith(Platform.create(fakeIos({ hkError: true }).win).health.importRuns({ since: '2026-08-29T08:00:00.000Z' }), 'health_failed');
+});
+
+test('watch and health error texts exist in both languages and name no other platform', () => {
+  for (const code of ['watch_unsupported', 'watch_invalid', 'watch_step_unsupported', 'watch_busy', 'watch_denied', 'watch_limit', 'watch_date', 'watch_failed', 'health_unavailable', 'health_failed']) {
+    for (const locale of ['cs', 'en']) {
+      const text = Platform.MESSAGES[locale].error[code];
+      assert.ok(typeof text === 'string' && text.length > 10, code + ' ' + locale);
+      assert.doesNotMatch(text, /Android|Windows|GitHub|APK/i, code + ' ' + locale);
+    }
+  }
 });

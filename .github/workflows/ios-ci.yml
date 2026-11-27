@@ -1,0 +1,97 @@
+name: iOS build check
+
+# Compiles the iOS app for the simulator without code signing, so a broken Xcode project, Info.plist,
+# storyboard, asset catalog or Swift file is caught before the owner archives on his Mac.
+# No secrets, no signing, no upload: App Store builds are made and uploaded from Xcode (docs/ios-release.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator-build:
+    name: iOS simulator build (unsigned)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest stable Xcode (26 or later)
+        run: |
+          set -euo pipefail
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|release_candidate|_rc' | sort -V | tail -n 1 || true)"
+          if [ -z "$xcode" ]; then xcode="/Applications/Xcode.app"; fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+          major="$(xcodebuild -version | awk 'NR == 1 { split($2, v, "."); print v[1] }')"
+          if [ "$major" -lt 26 ]; then
+            echo "::error::Xcode 26 or newer is required for App Store uploads and Capacitor 8 (found Xcode $major)"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Sync the web app into the iOS project (App Store channel)
+        working-directory: mobile
+        run: npm run sync:ios
+
+      - name: Lint plist, entitlements, privacy manifest and strings
+        working-directory: mobile/ios/App/App
+        run: plutil -lint Info.plist App.entitlements PrivacyInfo.xcprivacy en.lproj/InfoPlist.strings cs.lproj/InfoPlist.strings
+
+      - name: Build for the iOS simulator without signing
+        working-directory: mobile
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            build CODE_SIGNING_ALLOWED=NO
+
+      - name: Check the built app bundle
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          test -f "$app/PrivacyInfo.xcprivacy"
+          test -f "$app/public/src/index.html"
+          test -f "$app/public/src/build-info.js"
+          grep -Eq "channel[[:space:]]*:[[:space:]]*['\"]appstore['\"]" "$app/public/src/build-info.js"
+          test -f "$app/cs.lproj/InfoPlist.strings"
+          test -f "$app/en.lproj/InfoPlist.strings"
+          plutil -p "$app/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|CFBundleVersion|MinimumOSVersion|UIDeviceFamily' -A 2
+          version="$(node -p "require('./package.json').version")"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = "${version%%-*}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = "com.veyvo.coach"
+
+      - name: WorkoutKit is weak-linked (the app must still launch on iOS 15 and 16)
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          found=0
+          # Debug builds keep the code in App.debug.dylib next to a small App launcher.
+          for bin in "$app/App" "$app/App.debug.dylib"; do
+            [ -f "$bin" ] || continue
+            strong="$(otool -l "$bin" | awk '/cmd LC_LOAD_DYLIB$/ { getline; getline; print $2 }' | grep -E 'WorkoutKit' || true)"
+            weak="$(otool -l "$bin" | awk '/cmd LC_LOAD_WEAK_DYLIB$/ { getline; getline; print $2 }' | grep -E 'WorkoutKit' || true)"
+            if [ -n "$strong" ]; then echo "::error::WorkoutKit is strongly linked in $bin: $strong"; exit 1; fi
+            if [ -n "$weak" ]; then echo "weak in $(basename "$bin"): $weak"; found=1; fi
+          done
+          if [ "$found" -ne 1 ]; then echo "::error::WorkoutKit is not linked at all (are VeyvoWorkoutKitPlugin.swift and the -weak_framework flag in the App target?)"; exit 1; fi

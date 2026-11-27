@@ -40,6 +40,7 @@
         noRuns: 'Zatím tu není žádný běh.',
         noRunsSub: 'Zapiš první běh ručně nebo připoj Stravu. Cíl, plán i grafy se spočítají z tvých dat.',
         noRunsSubLocal: 'Zapiš první běh ručně nebo obnov zálohu z Windows. Cíl, plán i grafy se spočítají z tvých dat.',
+        noRunsSubStore: 'Zapiš první běh ručně nebo obnov zálohu VEYVO. Cíl, plán i grafy se spočítají z tvých dat.',
         loggedToday: 'Dnešní běh je zapsaný.',
         runToday: 'Dnes běžíš: {what}.',
         restAdvised: 'Dnes raději odpočívej.',
@@ -170,6 +171,7 @@
         step2: 'První běh',
         step2Text: 'Zapiš běh ručně, nebo ho načti ze Stravy.',
         step2TextLocal: 'Zapiš běh ručně, nebo obnov zálohu z Windows v Nastavení › Data.',
+        step2TextStore: 'Zapiš běh ručně, nebo obnov zálohu VEYVO v Nastavení › Data.',
         step3: 'Denní check-in',
         step3Text: 'Spánek, únava a bolest svalů. Podle nich se upraví doporučení.',
         done: 'Hotovo'
@@ -183,6 +185,7 @@
         noRuns: 'No runs here yet.',
         noRunsSub: 'Log your first run by hand or connect Strava. Your goal, plan and charts are calculated from your data.',
         noRunsSubLocal: 'Log your first run by hand or restore a backup from Windows. Your goal, plan and charts are calculated from your data.',
+        noRunsSubStore: 'Log your first run by hand or restore a VEYVO backup. Your goal, plan and charts are calculated from your data.',
         loggedToday: 'Today’s run is logged.',
         runToday: 'Run today: {what}.',
         restAdvised: 'Better rest today.',
@@ -313,6 +316,7 @@
         step2: 'First run',
         step2Text: 'Log a run by hand or load it from Strava.',
         step2TextLocal: 'Log a run by hand, or restore a backup from Windows in Settings › Data.',
+        step2TextStore: 'Log a run by hand, or restore a VEYVO backup in Settings › Data.',
         step3: 'Daily check-in',
         step3Text: 'Sleep, fatigue and muscle soreness. The advice adapts to them.',
         done: 'Done'
@@ -415,7 +419,7 @@
     const today = d.today;
     if (!d.hasRuns) {
       return d.profile && d.profile.onboarded
-        ? { tone: 'welcome', main: t('headline.noRuns'), tail: '', sub: t(app.strava.supported ? 'headline.noRunsSub' : 'headline.noRunsSubLocal') }
+        ? { tone: 'welcome', main: t('headline.noRuns'), tail: '', sub: t(app.strava.supported ? 'headline.noRunsSub' : app.build.store ? 'headline.noRunsSubStore' : 'headline.noRunsSubLocal') }
         : { tone: 'welcome', main: t('headline.welcome'), tail: '', sub: t('headline.welcomeSub') };
     }
     const reasons = recoveryReasons(d.recoveryAdvice);
@@ -938,7 +942,7 @@
         h('div.btn-row', cta)),
       h('ol.home-setup-steps',
         step(1, onboarded, t('setup.step1'), onboarded ? fmt.goal(d.profile) + (daysText ? ' · ' + daysText : '') : t('setup.step1Text')),
-        step(2, false, t('setup.step2'), t(app.strava.supported ? 'setup.step2Text' : 'setup.step2TextLocal')),
+        step(2, false, t('setup.step2'), t(app.strava.supported ? 'setup.step2Text' : app.build.store ? 'setup.step2TextStore' : 'setup.step2TextLocal')),
         step(3, !!d.recoveryToday, t('setup.step3'), t('setup.step3Text'))));
   }
 

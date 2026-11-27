@@ -93,7 +93,7 @@ test('index.html loads every module in the documented order, and every file exis
   const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
   assert.deepEqual(scripts, [
-    'vendor/workoutkit.js', 'core/format.js', 'core/i18n.js', 'core/runs-model.js', 'core/store.js', 'core/workouts.js',
+    'build-info.js', 'vendor/workoutkit.js', 'core/format.js', 'core/i18n.js', 'core/runs-model.js', 'core/store.js', 'core/workouts.js',
     'core/export/fit.js', 'core/export/apple.js', 'core/export/zwo.js', 'core/export/intervals.js', 'training-context.js',
     'nutrition-context.js', 'platform.js', 'ui/dom.js', 'ui/icons.js', 'ui/motion.js', 'ui/charts.js', 'ui/app.js',
     'ui/home.js', 'ui/plan.js', 'ui/progress.js', 'ui/run-dialog.js', 'ui/recovery.js', 'ui/workout-sheet.js', 'ui/settings.js',

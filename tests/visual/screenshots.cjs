@@ -5,9 +5,21 @@
 //   $ELECTRON --ozone-platform=headless --no-sandbox tests/visual/screenshots.cjs --out /tmp/shots \
 //       [--page home,plan,progress,nutrition,kit] [--theme dark,light] [--lang cs,en]
 //       [--size 1480x940,1120x720,412x915]   (aliases: desktop, min, phone)
-//       [--seed demo|empty|legacy|<file.json>] [--platform desktop|web] [--strava off|connected|error]
+//       [--seed demo|empty|legacy|<file.json>] [--platform desktop|android|ios|web] [--strava off|connected|error]
 //       [--today YYYY-MM-DD] [--full] [--dialog name[:{"json":"params"}]] [--eval "<js>"]
-//       [--wait 700] [--anim] [--name prefix]
+//       [--wait 700] [--anim] [--name prefix] [--index <other index.html>] [--scale 3] [--settle 450] [--css "<extra css>"]
+//       [--channel github|play|appstore]
+//
+// --scale renders at that device scale factor (the window size stays in CSS px, the PNG is w*scale x h*scale);
+// tests/visual/store-graphics.cjs uses it for the crisp store screenshots. --settle is the wait after --eval;
+// --css is injected like the animation freeze (e.g. hidden scrollbars, as on a phone).
+//
+// The Play build: `node mobile/scripts/sync-web.mjs --channel play --out <dir>`, then
+// --index <dir>/src/index.html --platform android (fake Capacitor shell from stub-preload.cjs).
+// The App Store build: `--channel appstore --out <dir>`, then --index <dir>/src/index.html --platform ios
+// (the same shell as getPlatform() 'ios' with fake VeyvoWorkoutKit and VeyvoHealth plugins).
+// --channel play|appstore does both in one step: it syncs that channel into a temporary folder (removed
+// afterwards), loads it instead of src/index.html and defaults --platform to android / ios.
 //
 // Every combination of page x theme x lang x size gives <out>/<name><page>[-<dialog>]-<theme>-<lang>-<w>x<h>.png.
 // Seeds: demo = the owner's 9 runs (27. 10. - 24. 11. 2026) shifted by whole weeks so the last run is
@@ -22,7 +34,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const INDEX = path.join(ROOT, 'src', 'index.html');
+let INDEX = process.argv.includes('--index') ? path.resolve(process.argv[process.argv.indexOf('--index') + 1]) : path.join(ROOT, 'src', 'index.html');
 const PRELOAD = path.join(__dirname, 'stub-preload.cjs');
 const KIT = path.join(__dirname, 'kit.js');
 
@@ -47,7 +59,20 @@ const themes = list(args.theme, 'dark');
 const langs = list(args.lang, 'cs');
 const sizes = list(args.size, '1480x940').map(s => SIZES[s] || s);
 const seedKind = args.seed || 'demo';
-const platform = args.platform || 'desktop';
+const CHANNEL_PLATFORM = { github: 'desktop', play: 'android', appstore: 'ios' };
+const channel = args.channel && args.channel !== true ? String(args.channel) : null;
+if (channel && !CHANNEL_PLATFORM[channel]) { console.error('screenshots: unknown --channel ' + channel); process.exit(1); }
+const platform = args.platform || (channel ? CHANNEL_PLATFORM[channel] : 'desktop');
+// --channel: sync that build into a temporary folder (the same copy Capacitor gets) and load it.
+let channelDir = null;
+if (channel && !args.index) {
+  channelDir = path.join(os.tmpdir(), 'veyvo-shots-www-' + channel + '-' + process.pid);
+  require('node:child_process').execFileSync(process.execPath, [path.join(ROOT, 'mobile', 'scripts', 'sync-web.mjs'), '--channel', channel, '--out', channelDir], {
+    env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '1' }), stdio: ['ignore', 'ignore', 'inherit']
+  });
+  INDEX = path.join(channelDir, 'src', 'index.html');
+}
+const cleanChannelDir = () => { if (channelDir) fs.rmSync(channelDir, { recursive: true, force: true }); };
 const strava = args.strava || 'connected';
 const waitMs = Number(args.wait || 700);
 
@@ -110,7 +135,7 @@ function seedFor(theme, lang) {
 
 // ---------------------------------------------------------------- capture
 app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('force-device-scale-factor', '1');
+app.commandLine.appendSwitch('force-device-scale-factor', String(Number(args.scale) > 0 ? Number(args.scale) : 1));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const BG = { dark: '#0D0E11', light: '#F2F3F5' };
 const FREEZE = '*,*::before,*::after,::backdrop{animation-duration:0s!important;animation-delay:0s!important;transition:none!important}';
@@ -148,13 +173,14 @@ async function shoot(cfg, n) {
     await win.webContents.executeJavaScript("VeyvoUI.app.navigate('kit', { focus: false }); 0");
   }
   if (!args.anim) await win.webContents.insertCSS(FREEZE);
+  if (args.css && args.css !== true) await win.webContents.insertCSS(String(args.css));
   await wait(args.anim ? Math.max(waitMs, 1200) : waitMs);
   if (args.dialog) {
     const [name, json] = String(args.dialog).split(/:(.*)/s);
     await win.webContents.executeJavaScript('void VeyvoUI.app.dialogs.open(' + JSON.stringify(name) + ', ' + (json || '{}') + ')');
     await wait(500);
   }
-  if (args.eval && args.eval !== true) { await win.webContents.executeJavaScript(String(args.eval) + '\n;0'); await wait(450); }
+  if (args.eval && args.eval !== true) { await win.webContents.executeJavaScript(String(args.eval) + '\n;0'); await wait(Number(args.settle) >= 0 ? Number(args.settle) : 450); }
   if (args.full) {
     const extra = await win.webContents.executeJavaScript("(() => { const m = document.querySelector('#main'); return m ? Math.max(0, m.scrollHeight - m.clientHeight) : 0; })()");
     if (extra > 0) { win.setContentSize(w, Math.min(h + extra + 8, 6000)); await wait(600); }
@@ -178,10 +204,12 @@ app.whenReady().then(async () => {
   let n = 0;
   try {
     for (const job of jobs) await shoot(job, n++);
+    cleanChannelDir();
     app.exit(0);
   } catch (error) {
     console.error('screenshots failed', error);
+    cleanChannelDir();
     app.exit(1);
   }
 });
-setTimeout(() => { console.error('screenshots: timeout'); app.exit(1); }, 30000 + 15000 * pagesArg.length * themes.length * langs.length * sizes.length);
+setTimeout(() => { console.error('screenshots: timeout'); cleanChannelDir(); app.exit(1); }, 30000 + 15000 * pagesArg.length * themes.length * langs.length * sizes.length);

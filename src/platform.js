@@ -4,6 +4,8 @@
  *   desktop  Electron: window.veyvo from electron/preload.js (detected by window.veyvo.saveFile)
  *   android  Capacitor: window.Capacitor.Plugins (Filesystem, Share, Preferences, Browser, App,
  *            CapacitorHttp), detected by Capacitor.isNativePlatform() && getPlatform() === 'android'
+ *   ios      the same Capacitor plugins plus the app's own Swift plugins VeyvoWorkoutKit (Apple Watch)
+ *            and VeyvoHealth (Apple Health, read only), detected by getPlatform() === 'ios'
  *   web      anything else (tests, screenshots, a plain browser): safe fallbacks
  *
  * Classic UMD script, no DOM access at load time. In Node, require('./platform.js') returns the
@@ -13,21 +15,27 @@
  *
  * Shape of every adapter (unsupported parts resolve to harmless values or reject with
  * error.code === 'unsupported'; never call a missing plugin):
- *   kind: 'desktop' | 'android' | 'web'
+ *   kind: 'desktop' | 'android' | 'ios' | 'web'
+ *   build: { channel: 'github' | 'play' | 'appstore', store }   from window.VEYVO_BUILD (src/build-info.js)
  *   supports: { saveFile, share, showInFolder, http, secrets, encryptedSecrets, backup, updates,
- *               strava, garmin, notify, titleBar }
+ *               strava, garmin, notify, titleBar, watch, health }
  *   version(): Promise<string>
  *   saveFile({ name, mime, data: Uint8Array | string }): Promise<{ saved, path?, shared?, canceled? }>
  *   showInFolder(path): Promise<boolean>
  *   openExternal(url): Promise<void>                  http/https only
  *   http({ url, method, headers, body }): Promise<{ status, ok, text, json, headers }>
- *                                                     https://intervals.icu and https://api.github.com only
+ *                                                     https://intervals.icu, plus GitHub's API in the
+ *                                                     'github' channel only (httpHostsFor)
  *   secrets: { supported, encrypted, get(name), set(name, value), remove(name) }
  *                                                     names [a-z0-9-]{1,40}
  *   backup: { supported, snapshot(json): Promise<{ path }>, list(), read(name) }
  *   updates: { supported, check(), install(), onStatus(cb) -> unsubscribe }
  *   strava: { supported, status(), connect(secret), sync(), disconnect(), onEvent(cb) -> unsubscribe }
  *   garmin: { supported, findDrives(): Promise<[{ root, label }]>, copy({ root, name, data }) }
+ *   watch: { supported, canSchedule, check(), preview(workout, { indoor, locale }),        (iOS only:
+ *            schedule(workout, 'YYYY-MM-DD', { indoor, locale }), listScheduled(), clearScheduled() }  WorkoutKit)
+ *   health: { supported, isAvailable(), requestAuthorization(), importRuns({ since }) }       (iOS only:
+ *                                                                                            HealthKit, read only)
  *   setTitleBarTheme({ color, symbolColor }): void
  *   notify({ title, body }): Promise<{ shown }>
  *
@@ -38,15 +46,42 @@
  *     storage). They are NOT encrypted: secrets.encrypted === false, the UI should say so.
  *   - saveFile writes to the app cache (exports/<name>) and opens the system share sheet.
  *   - backups go to Directory.Data 'backups/', newest 14 kept.
- *   - updates read https://api.github.com/repos/PepiBikerBTW/VEYVO/releases/latest and open the
- *     .apk asset in the browser; Strava and Garmin USB copy are not available yet.
+ *   - updates: only the 'github' channel has an updater (it asks GitHub for the newest release and
+ *     opens its Android package in the browser). The 'play' channel has none: Google Play installs
+ *     updates, and Play's Device and Network Abuse policy forbids any other update path.
+ *   - Strava and Garmin USB copy are not available.
+ *
+ * iOS notes (mobile/ios, docs/ios-release.md):
+ *   - the Capacitor plugins behave as on Android: Preferences is UserDefaults (not encrypted), files go
+ *     through the share sheet, backups to Directory.Data 'backups/'. No updater in any channel: the
+ *     App Store installs updates.
+ *   - watch: Capacitor.Plugins.VeyvoWorkoutKit (mobile/ios/App/App/VeyvoWorkoutKitPlugin.swift). Needs
+ *     iOS 17; `supported` starts from the iOS version in the user agent and check() asks the plugin.
+ *     preview() shows Apple's own workout preview with its "add to watch" button; schedule() puts the
+ *     workout into the Workout app's scheduled list for that day (07:00, today after 07:00 the next minute) and replaces any VEYVO
+ *     workout already scheduled for the day. The workout travels as JSON (watchPayload).
+ *   - health: Capacitor.Plugins.VeyvoHealth (VeyvoHealthPlugin.swift). importRuns resolves to rows
+ *     for VeyvoStore.importHealthRuns. iOS never tells an app whether reading was denied, so a denied
+ *     permission looks like "no runs".
+ *
+ * Build channels: code between the lines '// #if-channel github' and '// #end-channel' exists only in
+ * the 'github' channel. mobile/scripts/sync-web.mjs --channel play (or appstore) deletes those lines
+ * from the copy in mobile/www, so a store build does not even contain the GitHub updater. The code
+ * inside also checks the channel at run time, so the unstripped source behaves the same everywhere.
  */
 (function (root) {
   'use strict';
 
   // ---------------------------------------------------------------- constants
 
-  const HTTP_HOSTS = Object.freeze(['intervals.icu', 'api.github.com']);
+  // Build channels (src/build-info.js): 'github' plus the store channels. Unknown values count as 'github'.
+  const CHANNELS = Object.freeze(['github', 'play', 'appstore']);
+  // intervals.icu: the workout push, in every build. GitHub's API: the Android update check, GitHub build only.
+  const STORE_HTTP_HOSTS = Object.freeze(['intervals.icu']);
+  // #if-channel github
+  const GITHUB_HTTP_HOSTS = Object.freeze(['intervals.icu', 'api.github.com']);
+  // #end-channel
+  const HTTP_HOSTS = httpHostsFor(buildInfo(root.window).channel);
   const HTTP_METHODS = Object.freeze(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE']);
   const HTTP_TIMEOUT_MS = 15000;
   const MAX_HTTP_BODY_CHARS = 5 * 1024 * 1024;
@@ -62,12 +97,18 @@
   const SAFETY_KEEP = 10;
   const SAFETY_KINDS = Object.freeze(['replace', 'wipe']);
   const BACKUP_DIR = 'backups';
+  // Apple Watch: a scheduled workout appears in the Workout app at this local hour of its day.
+  const WATCH_SCHEDULE_HOUR = 7;
+  // Apple Health: at most this many running workouts per import (90 days hold far fewer).
+  const HEALTH_MAX_ROWS = 1000;
   const SECRET_PREFIX = 'veyvo-secret.';
   const WEB_VERSION = '0.0.0-web';
+  // #if-channel github
   const REPO = 'PepiBikerBTW/VEYVO';
   const RELEASES_LATEST_URL = 'https://api.github.com/repos/' + REPO + '/releases/latest';
   const RELEASE_DOWNLOAD_PREFIX = 'https://github.com/' + REPO + '/releases/download/';
   const RELEASE_PAGE_PREFIX = 'https://github.com/' + REPO + '/releases/';
+  // #end-channel
 
   const SECRET_NAME_RE = /^[a-z0-9-]{1,40}$/;
   // 'veyvo-2026-11-27.json' (daily) or 'veyvo-2026-11-27-101500-before-replace.json' (safety copy).
@@ -129,6 +170,28 @@
   function noop() {}
   function unsubscribeNoop() { return noop; }
 
+  // ---------------------------------------------------------------- build channel
+
+  /**
+   * buildInfo(win) -> { channel: 'github' | 'play' | 'appstore', store } from win.VEYVO_BUILD (in a
+   * page that is the global set by src/build-info.js). Missing or unknown values give 'github'; store
+   * is true for a store build (Google Play, App Store): no self-updater, no GitHub calls, no Strava.
+   */
+  function buildInfo(win) {
+    let raw = null;
+    try { raw = win && win.VEYVO_BUILD ? win.VEYVO_BUILD : root.VEYVO_BUILD; } catch (error) { raw = null; }
+    const channel = raw && typeof raw.channel === 'string' && CHANNELS.indexOf(raw.channel) >= 0 ? raw.channel : 'github';
+    return Object.freeze({ channel: channel, store: channel !== 'github' });
+  }
+
+  /** The http allowlist of a channel: STORE_HTTP_HOSTS for a store, plus GitHub's API (update check) for 'github'. */
+  function httpHostsFor(channel) {
+    // #if-channel github
+    if (channel === 'github' || CHANNELS.indexOf(channel) < 0) return GITHUB_HTTP_HOSTS;
+    // #end-channel
+    return STORE_HTTP_HOSTS;
+  }
+
   // ---------------------------------------------------------------- urls and http requests
 
   function parseUrl(url) {
@@ -137,13 +200,17 @@
     try { return new URL(url); } catch (error) { return null; }
   }
 
-  /** true for https://intervals.icu/... and https://api.github.com/... (default port, no credentials). */
-  function isAllowedHttpUrl(url) {
+  /**
+   * true for https://<an allowlisted host>/... on the default port without credentials. hosts
+   * defaults to HTTP_HOSTS (this build's channel); adapters pass httpHostsFor(their channel).
+   */
+  function isAllowedHttpUrl(url, hosts) {
+    const list = Array.isArray(hosts) ? hosts : HTTP_HOSTS;
     const u = parseUrl(url);
     if (!u) return false;
     if (u.protocol !== 'https:' || u.username || u.password) return false;
     if (u.port !== '' && u.port !== '443') return false;
-    return HTTP_HOSTS.indexOf(u.hostname) !== -1;
+    return list.indexOf(u.hostname) !== -1;
   }
 
   /** true for http:// and https:// links with a host and no embedded credentials. */
@@ -186,15 +253,16 @@
   }
 
   /**
-   * normalizeHttpRequest({ url, method = 'GET', headers, body }) -> { url, method, headers, body? }
+   * normalizeHttpRequest({ url, method = 'GET', headers, body }, { hosts }?) -> { url, method, headers, body? }
    * Throws coded errors: host_not_allowed (not https or not an allowlisted host), invalid_request,
    * too_large. A plain object/array body is sent as JSON (Content-Type added when missing).
    */
-  function normalizeHttpRequest(request) {
+  function normalizeHttpRequest(request, options) {
     if (!isPlainObject(request)) throw codedError('invalid_request', 'request must be an object');
     const u = parseUrl(request.url);
     if (!u) throw codedError('invalid_request', 'invalid url');
-    if (!isAllowedHttpUrl(request.url)) throw codedError('host_not_allowed', 'host not allowed: ' + u.host);
+    const hosts = options && Array.isArray(options.hosts) ? options.hosts : HTTP_HOSTS;
+    if (!isAllowedHttpUrl(request.url, hosts)) throw codedError('host_not_allowed', 'host not allowed: ' + u.host);
     const method = request.method == null ? 'GET' : String(request.method).toUpperCase();
     if (HTTP_METHODS.indexOf(method) === -1) throw codedError('invalid_request', 'method not allowed: ' + method);
     const headers = headerList(request.headers);
@@ -404,6 +472,7 @@
     return compareVersions(candidate, current) === 1;
   }
 
+  // #if-channel github
   /**
    * releaseInfo(githubLatestReleaseJson, currentVersion) ->
    *   { available, newer, version, url, pageUrl, publishedAt }
@@ -450,6 +519,7 @@
     if (!installedVersion || record.installed !== installedVersion) return null;
     return { type: record.type, version: typeof record.version === 'string' ? record.version : null, pageUrl: typeof record.pageUrl === 'string' && isExternalUrl(record.pageUrl) ? record.pageUrl : null, checkedAt: typeof record.checkedAt === 'string' ? record.checkedAt : null, restored: true };
   }
+  // #end-channel
 
   // ---------------------------------------------------------------- secrets, dates, backups, colors
 
@@ -605,6 +675,16 @@
         file_type_blocked: 'Tento typ souboru VEYVO z bezpečnostních důvodů neuloží.',
         write_failed: 'Soubor se nepodařilo uložit.',
         no_update: 'Žádná aktualizace ke stažení není.',
+        watch_unsupported: 'Přidat trénink přímo do Apple Watch jde v iPhonu s iOS 17 nebo novějším.',
+        watch_invalid: 'Tenhle trénink Apple Watch nepřijme. Zkontroluj délky a cíle kroků.',
+        watch_step_unsupported: 'Apple Watch některý krok nebo cíl tohoto tréninku neumí.',
+        watch_busy: 'Náhled tréninku už je otevřený.',
+        watch_denied: 'VEYVO nemá povolené plánovat tréninky do Apple Watch. Povol to v Nastavení iPhonu u aplikace VEYVO.',
+        watch_limit: 'V Apple Watch je naplánovaných tréninků nejvíc, kolik jde. Starší nejdřív odeber.',
+        watch_date: 'Naplánovat jde jen dnešek nebo pozdější den.',
+        watch_failed: 'Trénink se do Apple Watch nepodařilo předat.',
+        health_unavailable: 'Apple Zdraví není v tomto zařízení dostupné.',
+        health_failed: 'Běhy z Apple Zdraví se nepodařilo načíst.',
         failed: 'Něco se nepovedlo. Zkus to znovu.'
       }
     },
@@ -626,14 +706,40 @@
         file_type_blocked: 'For security reasons VEYVO does not save this type of file.',
         write_failed: 'The file could not be saved.',
         no_update: 'There is no update to download.',
+        watch_unsupported: 'Adding a workout straight to Apple Watch needs an iPhone with iOS 17 or later.',
+        watch_invalid: 'Apple Watch will not take this workout. Check the step lengths and targets.',
+        watch_step_unsupported: 'Apple Watch does not support a step or target of this workout.',
+        watch_busy: 'The workout preview is already open.',
+        watch_denied: 'VEYVO is not allowed to schedule workouts on Apple Watch. Allow it for VEYVO in the iPhone Settings.',
+        watch_limit: 'Apple Watch already has as many scheduled workouts as it can hold. Remove older ones first.',
+        watch_date: 'Only today or a later day can be scheduled.',
+        watch_failed: 'The workout could not be handed to Apple Watch.',
+        health_unavailable: 'Apple Health is not available on this device.',
+        health_failed: 'Runs could not be read from Apple Health.',
         failed: 'Something went wrong. Try again.'
       }
     }
   });
 
+  // A store build talks to intervals.icu only, so its texts must not mention GitHub.
+  const STORE_MESSAGES = Object.freeze({
+    cs: { error: { host_not_allowed: 'VEYVO se smí připojit jen k intervals.icu.' } },
+    en: { error: { host_not_allowed: 'VEYVO may only connect to intervals.icu.' } }
+  });
+
+  /** MESSAGES for a build ({ store }): the store builds get STORE_MESSAGES on top. */
+  function messagesFor(build) {
+    if (!build || !build.store) return MESSAGES;
+    const out = {};
+    Object.keys(MESSAGES).forEach(function (code) {
+      out[code] = { error: Object.assign({}, MESSAGES[code].error, STORE_MESSAGES[code].error) };
+    });
+    return out;
+  }
+
   function registerMessages(i18n) {
     if (!i18n || typeof i18n.register !== 'function') return false;
-    i18n.register('platform', MESSAGES);
+    i18n.register('platform', messagesFor(api.build));
     return true;
   }
 
@@ -673,6 +779,89 @@
       findDrives: function () { return Promise.resolve([]); },
       copy: function () { return unsupported('Garmin copy'); }
     };
+  }
+
+  function unsupportedWatch() {
+    return {
+      supported: false,
+      canSchedule: false,
+      check: function () { return Promise.resolve({ supported: false, schedule: false, maxScheduled: null }); },
+      preview: function () { return unsupported('Apple Watch'); },
+      schedule: function () { return unsupported('Apple Watch'); },
+      listScheduled: function () { return Promise.resolve([]); },
+      clearScheduled: function () { return unsupported('Apple Watch'); }
+    };
+  }
+
+  function unsupportedHealth() {
+    return {
+      supported: false,
+      isAvailable: function () { return Promise.resolve(false); },
+      requestAuthorization: function () { return unsupported('Apple Health'); },
+      importRuns: function () { return unsupported('Apple Health'); }
+    };
+  }
+
+  // ---------------------------------------------------------------- Apple Watch payload (iOS)
+
+  /** The iOS major version from a WKWebView user agent ('… CPU iPhone OS 17_2 like Mac OS X …'), or null. */
+  function iosMajorVersion(userAgent) {
+    const m = /\bOS (\d{1,2})[_.]\d/.exec(typeof userAgent === 'string' ? userAgent : '');
+    return m ? Number(m[1]) : null;
+  }
+
+  /**
+   * Apple keeps a warm-up only as the first item and a cool-down only as the last one; everything
+   * else becomes an interval block (the VeyvoApple.layout rule). A workout made only of a warm-up
+   * and/or a cool-down is all blocks.
+   */
+  function watchEnds(steps) {
+    const isStep = function (item, intensity) { return isPlainObject(item) && item.kind === 'step' && item.intensity === intensity; };
+    let start = 0, end = steps.length;
+    if (isStep(steps[0], 'warmup')) start = 1;
+    if (end > start && isStep(steps[end - 1], 'cooldown')) end -= 1;
+    return end === start ? { warmup: false, cooldown: false } : { warmup: start === 1, cooldown: end === steps.length - 1 };
+  }
+
+  /**
+   * watchPayload(workout, { indoor, locale, date }) -> { workoutJson, indoor, planId?, date? } for the
+   * native VeyvoWorkoutKit plugin. workoutJson is the VEYVO workout model (docs/architecture.md)
+   * as a JSON string: { id, name, date?, steps: [Step | Repeat] }. Steps Apple cannot name itself
+   * ('rest', or a warm-up / cool-down that is not at its end) get a label from VeyvoWorkouts.stepName
+   * in `locale`, as in the .workout file. planId is a deterministic UUID for (workout id, date)
+   * (VeyvoApple.uuidFrom), so scheduling the same workout again replaces it. The workout is checked
+   * with VeyvoWorkouts.validate first; an invalid one throws 'watch_invalid'.
+   */
+  function watchPayload(workout, options) {
+    const o = isPlainObject(options) ? options : {};
+    const Workouts = root.VeyvoWorkouts, Apple = root.VeyvoApple;
+    if (!isPlainObject(workout) || !Array.isArray(workout.steps) || typeof workout.name !== 'string') throw codedError('watch_invalid', 'workout must be a VEYVO workout');
+    if (Workouts && typeof Workouts.validate === 'function') {
+      const check = Workouts.validate(workout);
+      if (!check.ok) throw codedError('watch_invalid', 'invalid workout: ' + check.errors.map(function (e) { return e.code; }).join(', '));
+    }
+    const locale = o.locale === 'en' ? 'en' : 'cs';
+    const ends = watchEnds(workout.steps);
+    const last = workout.steps.length - 1;
+    function step(s, inRepeat, atEnd) {
+      const out = { kind: 'step', intensity: s.intensity, duration: s.duration, target: s.target };
+      const own = typeof s.label === 'string' ? s.label.trim() : '';
+      const needsName = !atEnd && (s.intensity === 'rest' || s.intensity === 'warmup' || s.intensity === 'cooldown');
+      const name = own || (needsName && Workouts && typeof Workouts.stepName === 'function' ? Workouts.stepName(s, locale, inRepeat) : '');
+      if (name) out.label = String(name);
+      return out;
+    }
+    const steps = workout.steps.map(function (item, i) {
+      if (item.kind === 'repeat') return { kind: 'repeat', count: item.count, steps: item.steps.map(function (s) { return step(s, true, false); }) };
+      return step(item, false, (i === 0 && ends.warmup) || (i === last && ends.cooldown));
+    });
+    const date = isDateKey(o.date) ? o.date : (isDateKey(workout.date) ? workout.date : null);
+    const model = { id: String(workout.id || ''), name: workout.name.trim(), steps: steps };
+    if (date) model.date = date;
+    const out = { workoutJson: JSON.stringify(model), indoor: o.indoor === true };
+    if (Apple && typeof Apple.uuidFrom === 'function') out.planId = Apple.uuidFrom('veyvo-watch\n' + model.id + '\n' + (date || ''));
+    if (date) out.date = date;
+    return out;
   }
 
   function emitter() {
@@ -764,6 +953,8 @@
     }
     const userAgent = win.navigator && typeof win.navigator.userAgent === 'string' ? win.navigator.userAgent : '';
     const garminSupported = has('garminFindDrives') && has('garminCopy') && (!userAgent || /Windows/i.test(userAgent));
+    const build = buildInfo(win);
+    const hosts = httpHostsFor(build.channel);
 
     function subscribe(name, callback) {
       if (!has(name) || typeof callback !== 'function') return noop;
@@ -775,12 +966,15 @@
 
     return {
       kind: 'desktop',
+      build: build,
       supports: Object.freeze({
         saveFile: true, share: false, showInFolder: has('showItemInFolder'), http: has('http'),
         secrets: Boolean(secretsBridge), encryptedSecrets: Boolean(secretsBridge), backup: has('backupSnapshot'),
-        updates: has('checkForUpdates'), strava: has('connectStrava'), garmin: garminSupported,
-        notify: has('notify'), titleBar: has('setTitleBarTheme')
+        updates: has('checkForUpdates') && !build.store, strava: has('connectStrava'), garmin: garminSupported,
+        notify: has('notify'), titleBar: has('setTitleBarTheme'), watch: false, health: false
       }),
+      watch: unsupportedWatch(),
+      health: unsupportedHealth(),
       version: function () {
         return call('version', [], 'failed').then(function (value) { return typeof value === 'string' && value ? value : '0.0.0'; });
       },
@@ -804,7 +998,7 @@
         }).then(noop);
       },
       http: function (request) {
-        return attempt(function () { return normalizeHttpRequest(request); }).then(function (normalized) {
+        return attempt(function () { return normalizeHttpRequest(request, { hosts: hosts }); }).then(function (normalized) {
           return call('http', [normalized], 'network');
         }).then(responseFrom);
       },
@@ -841,7 +1035,8 @@
           return call('readBackup', [name], 'not_found');
         }
       },
-      updates: has('checkForUpdates') ? {
+      // A store build never updates itself (only the GitHub Windows app ships electron-updater).
+      updates: has('checkForUpdates') && !build.store ? {
         supported: true,
         check: function () { return call('checkForUpdates', [], 'failed').then(function () { return { pending: true }; }); },
         install: function () { return call('installUpdate', [], 'failed').then(noop); },
@@ -888,9 +1083,11 @@
     };
   }
 
-  // ---------------------------------------------------------------- android (Capacitor)
+  // ---------------------------------------------------------------- android and ios (Capacitor)
 
-  function createAndroid(win) {
+  /** The Capacitor shells: kind 'android' (mobile/android) or 'ios' (mobile/ios). */
+  function createCapacitor(win, kind) {
+    const isIos = kind === 'ios';
     const cap = win.Capacitor;
     function plugins() { return cap.Plugins && typeof cap.Plugins === 'object' ? cap.Plugins : {}; }
     function hasPlugin(name) { return Boolean(plugins()[name]); }
@@ -900,8 +1097,8 @@
       return p;
     }
     function errorMessage(error) { return error && error.message ? String(error.message) : String(error || ''); }
-    const updateEvents = emitter();
-    let lastRelease = null;
+    const build = buildInfo(win);
+    const hosts = httpHostsFor(build.channel);
 
     function version() {
       return attempt(function () { return plugin('App').getInfo(); })
@@ -911,7 +1108,7 @@
 
     function http(request) {
       return attempt(function () {
-        const r = normalizeHttpRequest(request);
+        const r = normalizeHttpRequest(request, { hosts: hosts });
         const Http = plugin('CapacitorHttp');
         const headers = Object.assign({}, r.headers);
         const options = {
@@ -1040,42 +1237,162 @@
           function (error) { throw codedError('not_found', errorMessage(error)); });
     }
 
-    function checkUpdates() {
-      updateEvents.emit({ type: 'checking' });
-      return version().then(function (current) {
-        return http({ url: RELEASES_LATEST_URL, method: 'GET', headers: { Accept: 'application/vnd.github+json' } }).then(function (res) {
-          if (!res.ok) throw codedError(res.status === 404 ? 'no_update' : 'network', 'GitHub answered ' + res.status);
-          const info = releaseInfo(res.json, current);
-          lastRelease = info.available ? info : null;
-          if (info.available) updateEvents.emit({ type: 'available', version: info.version, url: info.url });
-          // A newer release without an APK yet (the Windows job finished first, or no signing key):
-          // not "up to date" - say a new version exists and link its release page.
-          else if (info.newer) updateEvents.emit({ type: 'newer', version: info.version, pageUrl: info.pageUrl });
-          else updateEvents.emit({ type: 'current', version: current });
-          return info;
+    // Updates: the Play and App Store builds have none (the store installs them). Only the GitHub
+    // Android build checks the newest GitHub release once a day (ui/app.js) and opens its APK download
+    // in the browser. iOS never has an updater.
+    let updates = unsupportedUpdates();
+    // #if-channel github
+    function githubUpdates() {
+      const updateEvents = emitter();
+      let lastRelease = null;
+
+      function checkUpdates() {
+        updateEvents.emit({ type: 'checking' });
+        return version().then(function (current) {
+          return http({ url: RELEASES_LATEST_URL, method: 'GET', headers: { Accept: 'application/vnd.github+json' } }).then(function (res) {
+            if (!res.ok) throw codedError(res.status === 404 ? 'no_update' : 'network', 'GitHub answered ' + res.status);
+            const info = releaseInfo(res.json, current);
+            lastRelease = info.available ? info : null;
+            if (info.available) updateEvents.emit({ type: 'available', version: info.version, url: info.url });
+            // A newer release without an APK yet (the Windows job finished first, or no signing key):
+            // not "up to date" - say a new version exists and link its release page.
+            else if (info.newer) updateEvents.emit({ type: 'newer', version: info.version, pageUrl: info.pageUrl });
+            else updateEvents.emit({ type: 'current', version: current });
+            return info;
+          });
+        }).catch(function (error) {
+          const coded = toCodedError(error, 'network');
+          updateEvents.emit({ type: 'error', code: coded.code, message: coded.message });
+          return { available: false, newer: false, version: null, url: null, error: { code: coded.code, message: coded.message } };
         });
+      }
+
+      function installUpdate() {
+        if (!lastRelease || !lastRelease.url) return Promise.reject(codedError('no_update', 'check for updates first'));
+        const url = lastRelease.url;
+        return attempt(function () { return plugin('Browser').open({ url: url }); }).then(function () {
+          updateEvents.emit({ type: 'opened', version: lastRelease.version, url: url });
+        });
+      }
+
+      return { supported: hasPlugin('CapacitorHttp') && hasPlugin('Browser'), check: checkUpdates, install: installUpdate, onStatus: updateEvents.on };
+    }
+    if (build.channel === 'github' && !isIos) updates = githubUpdates();
+    // #end-channel
+
+    // ---- Apple Watch (WorkoutKit) and Apple Health (HealthKit): the app's own Swift plugins, iOS only
+    function nativeCall(name, method, args, fallbackCode) {
+      return attempt(function () {
+        const p = plugin(name);
+        if (typeof p[method] !== 'function') throw codedError('unsupported', name + '.' + method + ' is not available');
+        return p[method](args || {});
       }).catch(function (error) {
-        const coded = toCodedError(error, 'network');
-        updateEvents.emit({ type: 'error', code: coded.code, message: coded.message });
-        return { available: false, newer: false, version: null, url: null, error: { code: coded.code, message: coded.message } };
+        if (error && error.code === 'unsupported') throw error;
+        throw toCodedError(error, fallbackCode);
       });
     }
 
-    function installUpdate() {
-      if (!lastRelease || !lastRelease.url) return Promise.reject(codedError('no_update', 'check for updates first'));
-      const url = lastRelease.url;
-      return attempt(function () { return plugin('Browser').open({ url: url }); }).then(function () {
-        updateEvents.emit({ type: 'opened', version: lastRelease.version, url: url });
-      });
+    function createWatch() {
+      if (!isIos || !hasPlugin('VeyvoWorkoutKit')) return unsupportedWatch();
+      const major = iosMajorVersion(win.navigator && win.navigator.userAgent);
+      // A first guess from the user agent (WorkoutKit needs iOS 17); check() asks the plugin itself.
+      const known = { supported: major === null || major >= 17, schedule: major === null || major >= 17 };
+      const call = function (method, args) { return nativeCall('VeyvoWorkoutKit', method, args, 'watch_failed'); };
+      function payload(workout, options, date) {
+        if (!known.supported) throw codedError('watch_unsupported', 'WorkoutKit needs iOS 17');
+        return watchPayload(workout, Object.assign({}, isPlainObject(options) ? options : {}, date ? { date: date } : {}));
+      }
+      return {
+        get supported() { return known.supported; },
+        get canSchedule() { return known.supported && known.schedule; },
+        check: function () {
+          return call('isSupported').then(function (r) {
+            known.supported = !!(r && r.supported);
+            known.schedule = !!(r && r.supported && r.schedule);
+            return { supported: known.supported, schedule: known.schedule, maxScheduled: r && Number.isInteger(r.maxScheduled) ? r.maxScheduled : null };
+          }, function () {
+            known.supported = false;
+            known.schedule = false;
+            return { supported: false, schedule: false, maxScheduled: null };
+          });
+        },
+        preview: function (workout, options) {
+          return attempt(function () { return payload(workout, options, null); })
+            .then(function (args) { return call('preview', args); })
+            .then(function (r) { return { shown: !(r && r.shown === false) }; });
+        },
+        schedule: function (workout, date, options) {
+          return attempt(function () {
+            if (!isDateKey(date)) throw codedError('watch_date', 'date must be YYYY-MM-DD');
+            if (!known.schedule) throw codedError('watch_unsupported', 'WorkoutScheduler is not supported');
+            return Object.assign(payload(workout, options, date), { hour: WATCH_SCHEDULE_HOUR });
+          }).then(function (args) { return call('schedule', args); }).then(function (r) {
+            return {
+              scheduled: true,
+              id: r && typeof r.id === 'string' ? r.id : null,
+              date: r && isDateKey(r.date) ? r.date : date,
+              replaced: r && Number.isInteger(r.replaced) ? r.replaced : 0
+            };
+          });
+        },
+        listScheduled: function () {
+          return call('listScheduled').then(function (r) {
+            const list = r && Array.isArray(r.workouts) ? r.workouts : [];
+            return list.filter(isPlainObject).map(function (w) {
+              return {
+                id: typeof w.id === 'string' ? w.id : null,
+                date: isDateKey(w.date) ? w.date : null,
+                time: typeof w.time === 'string' && /^\d{2}:\d{2}$/.test(w.time) ? w.time : null,
+                name: typeof w.name === 'string' ? cutChars(w.name, 120) : '',
+                complete: w.complete === true
+              };
+            });
+          });
+        },
+        clearScheduled: function () {
+          return call('clearScheduled').then(function (r) { return { removed: r && Number.isInteger(r.removed) ? r.removed : 0 }; });
+        }
+      };
+    }
+
+    function createHealth() {
+      if (!isIos || !hasPlugin('VeyvoHealth')) return unsupportedHealth();
+      const call = function (method, args) { return nativeCall('VeyvoHealth', method, args, 'health_failed'); };
+      return {
+        supported: true,
+        isAvailable: function () {
+          return call('isAvailable').then(function (r) { return !!(r && r.available); }, function () { return false; });
+        },
+        /** Shows the Health permission sheet the first time; later calls resolve at once. */
+        requestAuthorization: function () {
+          return call('requestAuthorization').then(function (r) { return { requested: !!(r && r.requested) }; });
+        },
+        /** importRuns({ since: ISO }) -> rows for VeyvoStore.importHealthRuns (running workouts that started at or after since). */
+        importRuns: function (options) {
+          return attempt(function () {
+            const since = isPlainObject(options) && typeof options.since === 'string' ? options.since : '';
+            const ms = Date.parse(since);
+            if (!Number.isFinite(ms)) throw codedError('invalid_request', 'since must be an ISO date');
+            return { since: new Date(ms).toISOString(), limit: HEALTH_MAX_ROWS };
+          }).then(function (args) { return call('importRuns', args); }).then(function (r) {
+            const rows = r && Array.isArray(r.runs) ? r.runs : [];
+            return rows.filter(isPlainObject).slice(0, HEALTH_MAX_ROWS);
+          });
+        }
+      };
     }
 
     return {
-      kind: 'android',
+      kind: kind,
+      build: build,
       supports: Object.freeze({
         saveFile: hasPlugin('Filesystem'), share: hasPlugin('Share'), showInFolder: false, http: hasPlugin('CapacitorHttp'),
         secrets: hasPlugin('Preferences'), encryptedSecrets: false, backup: hasPlugin('Filesystem'),
-        updates: hasPlugin('CapacitorHttp') && hasPlugin('Browser'), strava: false, garmin: false, notify: false, titleBar: hasPlugin('SystemBars')
+        updates: updates.supported, strava: false, garmin: false, notify: false, titleBar: hasPlugin('SystemBars'),
+        watch: isIos && hasPlugin('VeyvoWorkoutKit'), health: isIos && hasPlugin('VeyvoHealth')
       }),
+      watch: createWatch(),
+      health: createHealth(),
       version: version,
       saveFile: saveFile,
       showInFolder: function () { return Promise.resolve(false); },
@@ -1103,12 +1420,7 @@
         }
       },
       backup: { supported: hasPlugin('Filesystem'), snapshot: snapshot, list: listBackups, read: readBackup },
-      updates: {
-        supported: hasPlugin('CapacitorHttp') && hasPlugin('Browser'),
-        check: checkUpdates,
-        install: installUpdate,
-        onStatus: updateEvents.on
-      },
+      updates: updates,
       strava: unsupportedStrava(),
       garmin: unsupportedGarmin(),
       // Status and navigation bar icons follow the app theme, not the phone's light/dark setting
@@ -1129,13 +1441,18 @@
   function createWeb(win) {
     const w = win && typeof win === 'object' ? win : null;
     const memorySecrets = {};
+    const build = buildInfo(w);
+    const hosts = httpHostsFor(build.channel);
     return {
       kind: 'web',
+      build: build,
       supports: Object.freeze({
         saveFile: Boolean(w && w.document && w.URL && typeof w.Blob === 'function'), share: false, showInFolder: false,
         http: false, secrets: true, encryptedSecrets: false, backup: false, updates: false, strava: false,
-        garmin: false, notify: false, titleBar: false
+        garmin: false, notify: false, titleBar: false, watch: false, health: false
       }),
+      watch: unsupportedWatch(),
+      health: unsupportedHealth(),
       version: function () { return Promise.resolve(WEB_VERSION); },
       saveFile: function (file) {
         return attempt(function () {
@@ -1167,7 +1484,7 @@
         });
       },
       http: function (request) {
-        return attempt(function () { normalizeHttpRequest(request); }).then(function () { return unsupported('http'); });
+        return attempt(function () { normalizeHttpRequest(request, { hosts: hosts }); }).then(function () { return unsupported('http'); });
       },
       secrets: {
         supported: true,
@@ -1203,14 +1520,19 @@
 
   // ---------------------------------------------------------------- detection
 
-  /** 'desktop' when window.veyvo.saveFile exists, 'android' inside the Capacitor Android shell, else 'web'. */
+  /**
+   * 'desktop' when window.veyvo.saveFile exists, 'android' / 'ios' inside a native Capacitor shell
+   * (Capacitor.getPlatform()), else 'web'.
+   */
   function detect(win) {
     if (!win || (typeof win !== 'object' && typeof win !== 'function')) return 'web';
     try {
       if (win.veyvo && typeof win.veyvo.saveFile === 'function') return 'desktop';
       const cap = win.Capacitor;
-      if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform() &&
-        typeof cap.getPlatform === 'function' && cap.getPlatform() === 'android') return 'android';
+      if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform() && typeof cap.getPlatform === 'function') {
+        const platform = cap.getPlatform();
+        if (platform === 'android' || platform === 'ios') return platform;
+      }
     } catch (error) { /* a broken bridge is treated as no bridge */ }
     return 'web';
   }
@@ -1218,12 +1540,16 @@
   function create(win) {
     const kind = detect(win);
     if (kind === 'desktop') return createDesktop(win);
-    if (kind === 'android') return createAndroid(win);
+    if (kind === 'android' || kind === 'ios') return createCapacitor(win, kind);
     return createWeb(win);
   }
 
   const util = Object.freeze({
+    CHANNELS: CHANNELS,
     HTTP_HOSTS: HTTP_HOSTS,
+    STORE_HTTP_HOSTS: STORE_HTTP_HOSTS,
+    buildInfo: buildInfo,
+    httpHostsFor: httpHostsFor,
     HTTP_METHODS: HTTP_METHODS,
     HTTP_TIMEOUT_MS: HTTP_TIMEOUT_MS,
     MAX_HTTP_RESPONSE_BYTES: MAX_HTTP_RESPONSE_BYTES,
@@ -1235,8 +1561,13 @@
     SAFETY_KEEP: SAFETY_KEEP,
     SAFETY_KINDS: SAFETY_KINDS,
     WEB_VERSION: WEB_VERSION,
+    // #if-channel github
     RELEASES_LATEST_URL: RELEASES_LATEST_URL,
     RELEASE_DOWNLOAD_PREFIX: RELEASE_DOWNLOAD_PREFIX,
+    releaseInfo: releaseInfo,
+    updateCheckCounts: updateCheckCounts,
+    restoredUpdateStatus: restoredUpdateStatus,
+    // #end-channel
     codedError: codedError,
     toCodedError: toCodedError,
     isAllowedHttpUrl: isAllowedHttpUrl,
@@ -1256,9 +1587,6 @@
     parseVersion: parseVersion,
     compareVersions: compareVersions,
     isNewerVersion: isNewerVersion,
-    releaseInfo: releaseInfo,
-    updateCheckCounts: updateCheckCounts,
-    restoredUpdateStatus: restoredUpdateStatus,
     isSecretName: isSecretName,
     isDateKey: isDateKey,
     dateKeyOf: dateKeyOf,
@@ -1272,7 +1600,11 @@
     backupsToPrune: backupsToPrune,
     isHexColor: isHexColor,
     isDarkColor: isDarkColor,
-    systemBarsStyle: systemBarsStyle
+    systemBarsStyle: systemBarsStyle,
+    WATCH_SCHEDULE_HOUR: WATCH_SCHEDULE_HOUR,
+    HEALTH_MAX_ROWS: HEALTH_MAX_ROWS,
+    iosMajorVersion: iosMajorVersion,
+    watchPayload: watchPayload
   });
 
   const api = create(root.window);
@@ -1280,6 +1612,8 @@
   api.detect = detect;
   api.util = util;
   api.MESSAGES = MESSAGES;
+  api.STORE_MESSAGES = STORE_MESSAGES;
+  api.messagesFor = messagesFor;
   api.registerMessages = registerMessages;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

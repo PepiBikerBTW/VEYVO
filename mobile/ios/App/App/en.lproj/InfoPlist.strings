@@ -1,0 +1,3 @@
+/* Localized Info.plist values (English). Keep in sync with cs.lproj/InfoPlist.strings and Info.plist. */
+"CFBundleDisplayName" = "VEYVO";
+"NSHealthShareUsageDescription" = "VEYVO reads your running workouts from Apple Health (date, distance, duration and heart rate) and adds them to your running log on this iPhone. The data stays on your device.";

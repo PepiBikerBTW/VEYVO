@@ -11,7 +11,7 @@
     "build": "electron-builder --win nsis portable",
     "pack": "electron-builder --dir",
     "test": "node --test \"tests/*.test.js\"",
-    "test:ui": "electron tests/ui-app.cjs && electron tests/ui-flows.cjs && electron tests/ui-nutrition.cjs"
+    "test:ui": "electron tests/ui-app.cjs && electron tests/ui-flows.cjs && electron tests/ui-nutrition.cjs && electron tests/ui-ios.cjs"
   },
   "devDependencies": {
     "@bibixx/workoutkit": "^0.2.0",

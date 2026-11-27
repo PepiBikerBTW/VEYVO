@@ -1,0 +1,28 @@
+App/build
+App/Pods
+App/output
+App/App/public
+DerivedData
+xcuserdata
+
+# Cordova plugins for Capacitor
+capacitor-cordova-ios-plugins
+
+# Generated Config files
+App/App/capacitor.config.json
+App/App/config.xml
+
+# macOS and Xcode output (never commit build artefacts or signing material)
+.DS_Store
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.mobileprovision
+*.p12
+*.p8
+*.cer
+App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/configuration/
+*.xcresult
+build/
+.build/

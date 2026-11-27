@@ -4,7 +4,9 @@
  * VeyvoUI.app opens it on start when profile.onboarded is false and there are no runs; Settings ›
  * Data opens it again after "Smazat všechna data". Three short steps with a lane-style progress bar:
  *   1. Jak ti říkat + cíl   name (<= 40), goal distance, target time (prefilled 5 km / 20:00 from the
- *                           default profile) with a live goal-pace tile
+ *                           default profile) with a live goal-pace tile; at the bottom the health notice
+ *                           ("not a medical device", required by both app stores) and the privacy policy
+ *                           link (VeyvoUI.settings.PRIVACY_URL via VeyvoPlatform.openExternal)
  *   2. Kdy můžeš běhat      square day toggles Po–Ne (profile.days, 0 = Monday)
  *   3. Čím začneš           Zapiš poslední běh (dialog runLog) / Připojit Stravu (desktop: Settings ›
  *                           Propojení with the connect form open) / Obnovit ze zálohy (file picker ->
@@ -54,6 +56,7 @@
       pace: 'Cílové tempo',
       paceNone: 'bez cílového času',
       speed: '{speed} km/h',
+      health: 'VEYVO není zdravotnický prostředek. Rady v aplikaci jsou obecné, při zdravotních potížích se poraď s lékařem.',
       restoreFailed: 'Zálohu se nepodařilo načíst: {message}',
       done: 'Hotovo'
     },
@@ -85,6 +88,7 @@
       pace: 'Goal pace',
       paceNone: 'no target time',
       speed: '{speed} km/h',
+      health: 'VEYVO is not a medical device. Its tips are general guidance; if you have health concerns, talk to a healthcare professional.',
       restoreFailed: 'The backup could not be loaded: {message}',
       done: 'Done'
     }
@@ -152,8 +156,22 @@
         e.distance ? h('p.field-error', { role: 'alert' }, icon('warning'), h('span', errorText(e.distance))) : null),
       h('div.onb-goal-row',
         app.components.create('field', { label: app.t('settings.profile.target'), control: target, hint: app.t('settings.profile.targetHint'), error: e.target ? errorText(e.target) : null }),
-        h('div.onb-pace', { 'aria-live': 'polite' }, h('span.onb-pace-l', t('pace')), paceValue, paceSub))
+        h('div.onb-pace', { 'aria-live': 'polite' }, h('span.onb-pace-l', t('pace')), paceValue, paceSub)),
+      healthNote()
     ];
+  }
+
+  /** Step 1 footer: the health notice both stores require, and the privacy policy link. */
+  function healthNote() {
+    return h('div.onb-health',
+      icon('info', 14),
+      h('p.onb-health-text', t('health')),
+      h('button.btn-link.onb-policy', { type: 'button', dataset: { key: 'onb-privacy' }, onClick: openPrivacyPolicy },
+        h('span', app.t('settings.about.privacyPolicy')), icon('external', 14)));
+  }
+  function openPrivacyPolicy() {
+    Promise.resolve().then(() => root.VeyvoPlatform.openExternal(S().PRIVACY_URL))
+      .catch(err => app.toast(app.errorText(err), { kind: 'error' }));
   }
 
   function daysStep(st) {

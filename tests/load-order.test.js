@@ -10,6 +10,7 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 const ORDER = [
+  ['src/build-info.js', 'VEYVO_BUILD'],
   ['src/vendor/workoutkit.js', 'VeyvoWorkoutKit'],
   ['src/core/format.js', 'VeyvoFormat'],
   ['src/core/i18n.js', 'VeyvoI18n'],

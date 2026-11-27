@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="cs" data-title-cs="Podpora – VEYVO" data-title-en="Support – VEYVO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Podpora – VEYVO</title>
+  <meta name="description" content="Podpora VEYVO: zápis a načítání běhů, trénink do hodinek podle značky, zálohy, smazání dat a kontakt. VEYVO support: logging and importing runs, watch export per brand, backups and contact.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0D0E11" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" href="../img/icon-192.png">
+  <link rel="apple-touch-icon" href="../img/icon-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <script src="../lang.js" defer></script>
+</head>
+<body>
+<div id="cs" class="lang-anchor"></div>
+<div id="en" class="lang-anchor"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></symbol>
+</svg>
+
+<div class="page">
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../img/icon-192.png" alt="" width="32" height="32"><span>VEYVO</span></a>
+    <nav class="nav">
+      <span class="l-cs"><a href="./" aria-current="page">Podpora</a><a href="../privacy/">Soukromí</a></span>
+      <span class="l-en" lang="en"><a href="./#en" aria-current="page">Support</a><a href="../privacy/#en">Privacy</a></span>
+      <span class="lang-switch" aria-label="Jazyk / Language"><a href="#cs" lang="cs" hreflang="cs">CZ</a><a href="#en" lang="en" hreflang="en">EN</a></span>
+    </nav>
+  </div>
+</header>
+
+<main class="doc">
+  <div class="wrap">
+  <!-- ================================================================ ČESKY -->
+  <div class="l-cs">
+    <p class="eyebrow">Podpora</p>
+    <h1>Jak na VEYVO</h1>
+    <p class="meta">Nejčastější otázky. Nenašel jsi odpověď? Napiš na <a href="mailto:pepik.kozisek@seznam.cz">pepik.kozisek@seznam.cz</a>.</p>
+
+    <h2>Běhy</h2>
+    <div class="faq">
+      <details>
+        <summary>Jak zapíšu běh?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Klepni na <span class="path">+ Zapsat</span>, zadej vzdálenost (třeba 12,4) a&nbsp;čas (třeba 69:40), vyber typ běhu a&nbsp;úsilí 1–10. Po uložení VEYVO ukáže tempo, případný osobní rekord a&nbsp;další běh. Běh upravíš nebo smažeš v&nbsp;jeho detailu, smazání jde hned vrátit.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Umí VEYVO načítat běhy automaticky?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p><strong>iPhone:</strong> VEYVO umí načíst běhy z&nbsp;aplikace Zdraví (Apple Health), když mu to povolíš. Přístup je jen pro čtení a&nbsp;data zůstávají v&nbsp;iPhonu. Zrušíš ho v&nbsp;<span class="path">Nastavení iPhonu › Soukromí a&nbsp;zabezpečení › Zdraví › VEYVO</span>.</p>
+          <p><strong>Android:</strong> zatím běhy zapisuješ ručně. Načítání přes Health Connect plánujeme pro některou z&nbsp;dalších verzí.</p>
+          <p><strong>Windows:</strong> aplikace pro Windows umí načítat běhy z&nbsp;tvého účtu Strava (<span class="path">Nastavení › Propojení</span>). Když stejný běh zapíšeš i&nbsp;ručně, VEYVO oba záznamy spojí a&nbsp;platí tvůj zapsaný čas a&nbsp;vzdálenost.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>Trénink do hodinek</h2>
+    <div class="faq">
+      <details open>
+        <summary>Jak dostanu trénink do hodinek?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Na Přehledu nebo v&nbsp;Plánu klepni na <span class="path">Do hodinek</span> a&nbsp;vyber svou značku. VEYVO ti podle ní nabídne soubor, odeslání přes intervals.icu nebo text a&nbsp;ukáže postup krok za krokem. Naposledy zvolenou značku si pamatuje.</p>
+          <div class="brands">
+            <div class="brand-row"><div><b>Garmin</b><span class="how">soubor .fit</span></div><p>Ve Windows nahraje VEYVO soubor do hodinek připojených kabelem přímo, případně ho přetáhneš do složky <span class="path">GARMIN › NewFiles</span>. Z&nbsp;telefonu soubor do hodinek nahrát nejde (Garmin Connect soubory tréninků neimportuje), proto použij Garmin bez kabelu.</p></div>
+            <div class="brand-row"><div><b>Garmin bez kabelu</b><span class="how">přes intervals.icu</span></div><p>VEYVO pošle trénink do tvého kalendáře v&nbsp;intervals.icu, odtud přejde do Garmin Connect a&nbsp;hodinky si ho stáhnou při synchronizaci. Garmin dostává naplánované tréninky zhruba týden dopředu.</p></div>
+            <div class="brand-row"><div><b>Apple Watch</b><span class="how">přímo z&nbsp;iPhonu nebo soubor .workout</span></div><p>V&nbsp;aplikaci pro iPhone přidáš trénink do Apple Watch přímo: VEYVO ho předá aplikaci Cvičení. Z&nbsp;jiného zařízení pošli soubor .workout do iPhonu (iCloud Drive, e-mail, messenger), klepni na něj a&nbsp;zvol <span class="path">Přidat do Apple Watch</span>. Na hodinkách ho najdeš v&nbsp;aplikaci Cvičení mezi vlastními tréninky. Potřebuješ iOS 17 a&nbsp;watchOS 10 nebo novější. Když soubor nejde otevřít, aplikace WatchFit načte i&nbsp;soubor .fit.</p></div>
+            <div class="brand-row"><div><b>COROS, Suunto, Huawei, Amazfit</b><span class="how">přes intervals.icu</span></div><p>Trénink jde do kalendáře v&nbsp;intervals.icu a&nbsp;odtud do aplikace hodinek. COROS: v&nbsp;aplikaci COROS si poprvé přidej do kalendáře Intervals.icu Training Plan. Suunto: trénink je na hodinkách mezi SuuntoPlus Guides. Huawei Health dostává vždy další naplánovaný běh. Amazfit: propoj intervals.icu v&nbsp;aplikaci Zepp; plány fungují na hodinkách se Zepp OS 5.</p></div>
+            <div class="brand-row"><div><b>Polar, Samsung, Pixel Watch a&nbsp;další</b><span class="how">text</span></div><p>Trénink zkopíruješ nebo nasdílíš jako text a&nbsp;přepíšeš do aplikace hodinek. Ve Windows ho můžeš i&nbsp;vytisknout. Polar přijímá naplánované tréninky jen z&nbsp;TrainingPeaks, proto pro něj VEYVO nabízí i&nbsp;soubor .zwo k&nbsp;importu tam.</p></div>
+            <div class="brand-row"><div><b>Zwift</b><span class="how">soubor .zwo</span></div><p>Ulož soubor do složky <span class="path">Dokumenty › Zwift › Workouts › číslo tvého účtu</span>. Ve Zwiftu ho najdeš mezi vlastními běžeckými tréninky. Tempa v&nbsp;souboru vycházejí z&nbsp;tvého tempa na 5&nbsp;km, nastav ho ve Zwiftu v&nbsp;Edit Paces.</p></div>
+            <div class="brand-row"><div><b>TrainingPeaks</b><span class="how">soubor .zwo</span></div><p>V&nbsp;TrainingPeaks otevři <span class="path">Workout Library › Import Workout</span> a&nbsp;přetáhni trénink na den v&nbsp;kalendáři. TrainingPeaks ho pošle do propojených hodinek. Plánování do budoucna vyžaduje placený účet TrainingPeaks Premium.</p></div>
+          </div>
+        </div>
+      </details>
+      <details>
+        <summary>Jak nastavím intervals.icu?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Na <a href="https://intervals.icu">intervals.icu</a> se přihlas a&nbsp;otevři <span class="path">Settings › Developer Settings</span>. Zkopíruj API key a&nbsp;vlož ho ve VEYVO v&nbsp;okně Do hodinek nebo v&nbsp;<span class="path">Nastavení › Propojení</span>.</p>
+          <p>Jednou v&nbsp;intervals.icu: v&nbsp;Settings propoj účet svých hodinek a&nbsp;zapni nahrávání plánovaných tréninků (Upload planned workouts). Nastav si i&nbsp;prahové tempo pro běh, jinak se cílová tempa do hodinek nepřenesou.</p>
+          <p>Klíč zůstává jen ve tvém zařízení. Odebereš ho v&nbsp;<span class="path">Nastavení › Propojení › Odebrat klíč</span>. intervals.icu je služba třetí strany a&nbsp;platí pro ni její vlastní podmínky.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>Data a&nbsp;zálohy</h2>
+    <div class="faq">
+      <details>
+        <summary>Kde jsou moje data a&nbsp;jak je zálohovat?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Všechno je jen v&nbsp;tvém zařízení, VEYVO nemá účet ani cloud. Zálohu do souboru uložíš v&nbsp;<span class="path">Nastavení › Data a&nbsp;zálohy › Exportovat zálohu</span>. Je to jeden soubor JSON se všemi daty, ulož si ho na bezpečné místo.</p>
+          <p>VEYVO navíc jednou denně ukládá automatickou zálohu v&nbsp;zařízení (drží posledních 14) a&nbsp;před nahrazením nebo smazáním dat ještě samostatnou kopii. Najdeš je v&nbsp;<span class="path">Nastavení › Data a&nbsp;zálohy › Automatické zálohy</span>. Automatické zálohy jsou ve stejném zařízení, takže při ztrátě telefonu nepomůžou; pro jistotu si občas exportuj zálohu do souboru.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Jak přenesu data do nového telefonu?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Ve starém zařízení exportuj zálohu a&nbsp;přenes soubor do nového (třeba e-mailem nebo přes cloudové úložiště). V&nbsp;novém zařízení otevři VEYVO a&nbsp;zvol <span class="path">Nastavení › Data a&nbsp;zálohy › Obnovit ze souboru</span>, případně obnovení ze zálohy nabídne už úvodní průvodce. <strong>Sloučit</strong> přidá chybějící běhy a&nbsp;záznamy, <strong>Nahradit</strong> použije jen obsah zálohy.</p>
+          <p>Zálohu z&nbsp;Androidu obnovíš i&nbsp;na iPhonu nebo ve Windows a&nbsp;naopak.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Jak smažu svoje data?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p><span class="path">Nastavení › Data a&nbsp;zálohy › Smazat všechna data</span> smaže běhy, regeneraci, plán, profil i&nbsp;nastavení Před během. VEYVO předtím uloží bezpečnostní kopii mezi Automatické zálohy, aby šlo smazání vrátit. Úplně všechno včetně automatických záloh smaže odinstalace aplikace. Podrobnosti jsou v&nbsp;<a href="../privacy/#cs-smazani">zásadách ochrany osobních údajů</a>.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>Aplikace</h2>
+    <div class="faq">
+      <details>
+        <summary>Kolik VEYVO stojí?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>VEYVO je zdarma, bez reklam a&nbsp;bez účtu.</p></div>
+      </details>
+      <details>
+        <summary>Jak přepnu jazyk nebo motiv?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>V&nbsp;<span class="path">Nastavení › Vzhled a&nbsp;jazyk</span>. Čeština a&nbsp;angličtina se přepnou hned a&nbsp;volba zůstane uložená.</p></div>
+      </details>
+      <details>
+        <summary>Odkud VEYVO bere tempa a&nbsp;doporučení?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>Jen z&nbsp;toho, co zapíšeš: tempa vycházejí z&nbsp;tvého nejlepšího běhu na 5&nbsp;km a&nbsp;cílového času, další běh z&nbsp;posledního běhu, úsilí a&nbsp;dnů, kdy můžeš běhat. Rady na stránce Před během jsou obecné a&nbsp;mají odkazy na zdroje. VEYVO nenahrazuje trenéra ani lékaře.</p></div>
+      </details>
+    </div>
+
+    <h2>Kontakt</h2>
+    <div class="card" style="margin-top:12px">
+      <p>Napiš na <a href="mailto:pepik.kozisek@seznam.cz">pepik.kozisek@seznam.cz</a>. Pomůže, když přidáš verzi VEYVO (<span class="path">Nastavení › O&nbsp;aplikaci</span>), model zařízení a&nbsp;postup, jak chybu vyvolat. Chyby a&nbsp;nápady můžeš hlásit i&nbsp;na <a href="https://github.com/PepiBikerBTW/VEYVO/issues">GitHubu</a>. Do zprávy neposílej zálohu ani jiná osobní data, pokud o&nbsp;ně výslovně nepožádám.</p>
+    </div>
+  </div>
+
+  <!-- ================================================================ ENGLISH -->
+  <div class="l-en" lang="en">
+    <p class="eyebrow">Support</p>
+    <h1>Using VEYVO</h1>
+    <p class="meta">Common questions. Can't find your answer? Write to <a href="mailto:pepik.kozisek@seznam.cz">pepik.kozisek@seznam.cz</a>.</p>
+
+    <h2>Runs</h2>
+    <div class="faq">
+      <details>
+        <summary>How do I log a run?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Tap <span class="path">+ Log</span>, enter the distance (such as 12.4) and the time (such as 69:40), and pick the run type and your effort from 1 to 10. Once saved, VEYVO shows your pace, any personal best and your next run. Edit or delete a run in its detail; a deletion can be undone right away.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can VEYVO import runs automatically?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p><strong>iPhone:</strong> VEYVO can import your runs from Apple Health if you allow it. Access is read-only and the data stays on your iPhone. Withdraw it in <span class="path">iPhone Settings › Privacy &amp; Security › Health › VEYVO</span>.</p>
+          <p><strong>Android:</strong> for now you log runs by hand. Importing through Health Connect is planned for a later version.</p>
+          <p><strong>Windows:</strong> the Windows app can import runs from your Strava account (<span class="path">Settings › Connections</span>). When you also log the same run by hand, VEYVO merges the two and keeps the time and distance you typed.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>Workouts on your watch</h2>
+    <div class="faq">
+      <details open>
+        <summary>How do I get a workout onto my watch?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>On Overview or My plan, tap <span class="path">Send to watch</span> and pick your brand. VEYVO then offers a file, sending through intervals.icu or text, and shows the steps. It remembers the brand you picked last.</p>
+          <div class="brands">
+            <div class="brand-row"><div><b>Garmin</b><span class="how">.fit file</span></div><p>On Windows, VEYVO copies the file straight to a watch connected by cable, or you drag it into <span class="path">GARMIN › NewFiles</span>. A phone cannot put the file on the watch (Garmin Connect does not import workout files), so use Garmin, no cable.</p></div>
+            <div class="brand-row"><div><b>Garmin, no cable</b><span class="how">via intervals.icu</span></div><p>VEYVO sends the workout to your intervals.icu calendar, from there it goes to Garmin Connect, and the watch picks it up when it syncs. Garmin receives planned workouts about a week ahead.</p></div>
+            <div class="brand-row"><div><b>Apple Watch</b><span class="how">straight from the iPhone, or a .workout file</span></div><p>In the iPhone app you add the workout to Apple Watch directly: VEYVO hands it to the Workout app. From another device, send the .workout file to your iPhone (iCloud Drive, email, a messenger), tap it and choose <span class="path">Add to Apple Watch</span>. On the watch, open Workout and find it among your custom workouts. You need iOS 17 and watchOS 10 or later. If the file does not open, the WatchFit app also reads the .fit file.</p></div>
+            <div class="brand-row"><div><b>COROS, Suunto, Huawei, Amazfit</b><span class="how">via intervals.icu</span></div><p>The workout goes to your intervals.icu calendar and on to your watch app. COROS: the first time, add the Intervals.icu Training Plan to your calendar in the COROS app. Suunto: the workout is among SuuntoPlus Guides on the watch. Huawei Health always receives the next planned run. Amazfit: link intervals.icu in the Zepp app; plans work on Zepp OS 5 watches.</p></div>
+            <div class="brand-row"><div><b>Polar, Samsung, Pixel Watch and others</b><span class="how">text</span></div><p>Copy or share the workout as text and enter it in your watch app. On Windows you can also print it. Polar only takes planned workouts from TrainingPeaks, so for Polar VEYVO also offers a .zwo file to import there.</p></div>
+            <div class="brand-row"><div><b>Zwift</b><span class="how">.zwo file</span></div><p>Save the file to <span class="path">Documents › Zwift › Workouts › your account number</span>. In Zwift it is among your custom running workouts. Paces in the file are based on your 5 km pace; set it in Zwift under Edit Paces.</p></div>
+            <div class="brand-row"><div><b>TrainingPeaks</b><span class="how">.zwo file</span></div><p>In TrainingPeaks, open <span class="path">Workout Library › Import Workout</span> and drag the workout onto a calendar day. TrainingPeaks sends it to connected watches. Planning future days needs a paid TrainingPeaks Premium account.</p></div>
+          </div>
+        </div>
+      </details>
+      <details>
+        <summary>How do I set up intervals.icu?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Sign in at <a href="https://intervals.icu">intervals.icu</a> and open <span class="path">Settings › Developer Settings</span>. Copy the API key and paste it into VEYVO in the Send to watch sheet or in <span class="path">Settings › Connections</span>.</p>
+          <p>Once, in intervals.icu: connect your watch account in Settings and turn on Upload planned workouts. Also set a Run threshold pace, otherwise pace targets do not reach the watch.</p>
+          <p>The key stays on your device only. Remove it in <span class="path">Settings › Connections › Remove key</span>. intervals.icu is a third-party service with its own terms.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>Data and backups</h2>
+    <div class="faq">
+      <details>
+        <summary>Where is my data and how do I back it up?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Everything stays on your device; VEYVO has no account and no cloud. Save a backup to a file in <span class="path">Settings › Data and backups › Export backup</span>. It is one JSON file with all your data; keep it somewhere safe.</p>
+          <p>VEYVO also saves an automatic backup on the device once a day (it keeps the last 14) and a separate copy before data is replaced or deleted. You find them in <span class="path">Settings › Data and backups › Automatic backups</span>. They live on the same device, so they will not help if you lose the phone; export a backup file now and then.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I move my data to a new phone?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p>Export a backup on the old device and move the file to the new one (for example by email or cloud storage). On the new device, open VEYVO and choose <span class="path">Settings › Data and backups › Restore from a file</span>; the welcome guide also offers it. <strong>Merge</strong> adds runs and entries that are missing, <strong>Replace</strong> keeps only what is in the backup.</p>
+          <p>A backup from Android restores on iPhone or Windows too, and the other way round.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I delete my data?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer">
+          <p><span class="path">Settings › Data and backups › Delete all data</span> deletes runs, recovery, plan, profile and your Before the run settings. VEYVO first keeps a safety copy among the Automatic backups so the deletion can be undone. Uninstalling the app removes everything, automatic backups included. Details are in the <a href="../privacy/#en-deletion">privacy policy</a>.</p>
+        </div>
+      </details>
+    </div>
+
+    <h2>The app</h2>
+    <div class="faq">
+      <details>
+        <summary>How much does VEYVO cost?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>VEYVO is free, with no ads and no account.</p></div>
+      </details>
+      <details>
+        <summary>How do I change the language or theme?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>In <span class="path">Settings › Appearance and language</span>. Czech and English switch right away and the choice stays saved.</p></div>
+      </details>
+      <details>
+        <summary>Where do the paces and suggestions come from?<svg class="ic"><use href="#i-chevron-down"/></svg></summary>
+        <div class="answer"><p>Only from what you log: paces come from your best 5 km run and your goal time, the next run from your last run, its effort and the days you can run. The tips on the Before the run page are general guidance with links to their sources. VEYVO does not replace a coach or a doctor.</p></div>
+      </details>
+    </div>
+
+    <h2>Contact</h2>
+    <div class="card" style="margin-top:12px">
+      <p>Write to <a href="mailto:pepik.kozisek@seznam.cz">pepik.kozisek@seznam.cz</a>. It helps to include your VEYVO version (<span class="path">Settings › About</span>), your device model and the steps that cause the problem. You can also report bugs and ideas on <a href="https://github.com/PepiBikerBTW/VEYVO/issues">GitHub</a>. Please do not send a backup or other personal data unless I ask for it.</p>
+    </div>
+  </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="health">
+      <svg class="ic"><use href="#i-info"/></svg>
+      <div>
+        <p class="l-cs">VEYVO není zdravotnický prostředek a&nbsp;nediagnostikuje, neléčí, nevyléčí ani nepředchází žádnému onemocnění. Rady k&nbsp;tréninku, regeneraci a&nbsp;jídlu jsou obecné. Před náročnějším tréninkem nebo při zdravotních potížích se poraď s&nbsp;lékařem.</p>
+        <p class="l-en" lang="en">VEYVO is not a medical device and does not diagnose, treat, cure or prevent any medical condition. Its training, recovery and nutrition tips are general guidance. Talk to a doctor or another healthcare professional before harder training or if you have health concerns.</p>
+      </div>
+    </div>
+    <div class="foot-links">
+      <span class="l-cs"><a href="../">VEYVO</a><a href="../privacy/">Zásady ochrany osobních údajů</a></span>
+      <span class="l-en" lang="en"><a href="../#en">VEYVO</a><a href="../privacy/#en">Privacy policy</a></span>
+      <a href="https://github.com/PepiBikerBTW/VEYVO">GitHub</a>
+    </div>
+    <p class="copy">© 2026 Josef Kožíšek · VEYVO</p>
+  </div>
+</footer>
+</div>
+</body>
+</html>

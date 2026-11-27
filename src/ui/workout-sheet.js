@@ -14,8 +14,14 @@
  * profile, the step list and every VeyvoWorkouts.validate error in words.
  * Then "Kam ho poslat?": a brand grid with text labels (no logos). Each brand opens a short flow:
  *   Garmin          .fit (VeyvoFit) via VeyvoPlatform.saveFile; desktop also finds mass-storage
- *                   watches (garmin.findDrives) and copies straight to GARMIN\NewFiles; MTP steps
- *   Apple Watch     .workout (VeyvoApple, unofficial format), iPhone steps, WatchFit .fit fallback
+ *                   watches (garmin.findDrives) and copies straight to GARMIN\NewFiles; MTP steps.
+ *                   Store build on Android (garminViaIntervals): Garmin Connect cannot import workout
+ *                   files, so the card steers to intervals.icu ("Garmin bez kabelu") and keeps the
+ *                   .fit file as a secondary "Pro pokročilé: USB z počítače" disclosure
+ *   Apple Watch     iPhone with iOS 17+ (VeyvoPlatform.watch, Apple's WorkoutKit): "Přidat do Apple Watch"
+ *                   opens Apple's own workout preview, "Naplánovat na …" puts it into the Workout app's
+ *                   schedule for that day; the .workout file stays behind "Pro pokročilé". Elsewhere
+ *                   (and below iOS 17): .workout (VeyvoApple, unofficial format), steps, WatchFit .fit
  *   COROS, Suunto, Huawei, Amazfit, Garmin bez kabelu
  *                   intervals.icu push (VeyvoIntervals + VeyvoPlatform.http), API key in
  *                   VeyvoPlatform.secrets 'intervals-api-key' with inline setup; third-party notice
@@ -23,7 +29,8 @@
  *   Polar, Samsung, Pixel, other   copy as text (VeyvoWorkouts.toText), print (desktop) or share
  * Each successful export is appended to state.exportLog (VeyvoStore.logExport); intervals pushes
  * also store state.intervals.lastPush / lastError. The chosen brand is remembered in
- * state.ui.lastExportBrand. Android: saveFile opens the share sheet, so the buttons say "Sdílet".
+ * state.ui.lastExportBrand (on iPhone Apple Watch is preselected). Android and iPhone: saveFile opens
+ * the share sheet, so the buttons say "Sdílet".
  *
  * Texts: i18n namespace 'workout' (cs + en). CSS: styles/pages/workout-sheet.css (prefix ws-).
  * Pure helpers for tests: VeyvoUI.workoutSheet.
@@ -73,9 +80,20 @@
   ].map(Object.freeze));
   const BRAND_IDS = BRANDS.map(b => b.id);
   function brandOf(id) { return BRANDS.find(b => b.id === id) || null; }
+  // App Store guideline 2.3.10: the iPhone build must not name other mobile platforms, so the
+  // Wear OS / Samsung tiles are left out there (their only route is the text export under 'other').
+  const NOT_ON_IOS = Object.freeze(['samsung', 'pixel']);
+  function visibleBrands(platform) {
+    const p = platform || {};
+    const ios = p.kind === 'ios' || (p.build && p.build.channel === 'appstore');
+    return ios ? BRANDS.filter(b => !NOT_ON_IOS.includes(b.id)) : BRANDS;
+  }
 
   /** The export log format code for an action. */
-  const FORMAT = Object.freeze({ fit: 'fit', garminCopy: 'garmin', apple: 'apple', zwo: 'zwo', intervals: 'intervals', text: 'text', print: 'print', txt: 'text-share' });
+  const FORMAT = Object.freeze({
+    fit: 'fit', garminCopy: 'garmin', apple: 'apple', appleWatch: 'apple-watch', appleSchedule: 'apple-schedule',
+    zwo: 'zwo', intervals: 'intervals', text: 'text', print: 'print', txt: 'text-share'
+  });
 
   // ================================================================ texts (namespace 'workout')
   const MESSAGES = {
@@ -150,7 +168,8 @@
         at: '{day} v {time}',
         format: {
           fit: 'soubor .fit', garmin: 'přímo do hodinek Garmin', apple: 'soubor .workout', zwo: 'soubor .zwo',
-          intervals: 'intervals.icu', text: 'zkopírováno jako text', print: 'tisk', 'text-share': 'sdílení textu'
+          intervals: 'intervals.icu', text: 'zkopírováno jako text', print: 'tisk', 'text-share': 'sdílení textu',
+          'apple-watch': 'Apple Watch', 'apple-schedule': 'naplánováno do Apple Watch'
         }
       },
       dest: { title: 'Kam ho poslat?', sub: 'Vyber hodinky nebo aplikaci', label: 'Hodinky nebo aplikace' },
@@ -161,7 +180,7 @@
       },
       method: {
         fit: 'Soubor .fit přes USB', intervals: 'Přes intervals.icu', apple: 'Soubor .workout', zwo: 'Soubor .zwo',
-        text: 'Text a tisk', textShare: 'Text a sdílení'
+        text: 'Text a tisk', textShare: 'Text a sdílení', garminPhone: 'intervals.icu nebo .fit', appleNative: 'Přímo do hodinek'
       },
       action: {
         download: 'Stáhnout {ext}', share: 'Sdílet {ext}…', openFolder: 'Otevřít složku',
@@ -211,7 +230,18 @@
         n2: 'Trénink zůstane jen v hodinkách, v Garmin Connect se neobjeví.',
         n3: 'Když se trénink neukáže, hodinky restartuj.',
         android: 'Z telefonu se soubor do hodinek Garmin nahrát nedá. Pošli si ho do počítače, nebo použij Garmin bez kabelu.',
-        androidSwitch: 'Přepnout na Garmin bez kabelu'
+        androidSwitch: 'Přepnout na Garmin bez kabelu',
+        phone: {
+          lead: 'Z telefonu dostaneš trénink do hodinek Garmin přes intervals.icu: VEYVO ho pošle do tvého kalendáře v intervals.icu, odtud přejde do Garmin Connect a hodinky si ho stáhnou při synchronizaci.',
+          use: 'Poslat přes intervals.icu',
+          why: 'Garmin Connect soubory tréninků importovat neumí, proto z telefonu vede cesta přes intervals.icu.',
+          advanced: 'Pro pokročilé: USB z počítače',
+          usbLead: 'Soubor .fit nahraješ do hodinek jen kabelem z počítače.',
+          s1: 'Pošli si soubor do počítače, třeba e-mailem nebo přes cloudové úložiště.',
+          s2: 'Připoj hodinky kabelem USB k počítači a otevři je.',
+          s4: 'Zkopíruj do ní soubor',
+          s4Pending: 'Zkopíruj do ní soubor, který nasdílíš tlačítkem výše.'
+        }
       },
       apple: {
         lead: 'Trénink se uloží jako soubor .workout, který iPhone přidá do aplikace Cvičení.',
@@ -225,7 +255,26 @@
         add: 'Přidat do Apple Watch',
         req: 'Potřebuješ iPhone s iOS 17 nebo novějším a Apple Watch s watchOS 10 nebo novějším.',
         fallback: 'Soubor nejde otevřít? Aplikace WatchFit na iPhonu načte i soubor .fit.',
-        unofficial: 'Neoficiální formát: Apple ho nezveřejnil, VEYVO ho zapisuje podle zpětně zjištěné struktury.'
+        unofficial: 'Neoficiální formát: Apple ho nezveřejnil, VEYVO ho zapisuje podle zpětně zjištěné struktury.',
+        s1Phone: 'Klepni na Sdílet .workout a zvol Uložit do Souborů.',
+        s2Phone: 'V aplikaci Soubory na uložený soubor klepni.',
+        native: {
+          lead: 'VEYVO předá trénink přímo Applu: otevře se jeho náhled tréninku a odtud ho jedním klepnutím přidáš do Apple Watch.',
+          today: 'dnešek',
+          s1: 'Vyber, jestli poběžíš venku, nebo na pásu.',
+          s2: 'Klepni na Přidat do Apple Watch a v náhledu od Applu trénink přidej do hodinek.',
+          s3: 'Na hodinkách otevři Cvičení, vyber běh a trénink najdeš mezi vlastními tréninky.',
+          official: 'Používá oficiální rozhraní Apple WorkoutKit. Hodinky musí být spárované s tímto iPhonem.',
+          opening: 'Otevírám náhled tréninku…',
+          closed: 'Náhled je zavřený. Pokud jsi trénink přidal, najdeš ho na hodinkách v aplikaci Cvičení u běhu.',
+          planTitle: 'Naplánovat do hodinek',
+          planLead: 'Trénink se ukáže v aplikaci Cvičení na hodinkách mezi naplánovanými tréninky. Jiný trénink od VEYVO na stejný den nahradí.',
+          plan: 'Naplánovat na {day}',
+          planning: 'Plánuji trénink…',
+          planned: 'Naplánováno na {day}. Do hodinek se trénink přenese při další synchronizaci.',
+          replaced: 'Předchozí trénink od VEYVO na ten den je nahrazený.',
+          file: 'Pro pokročilé: soubor .workout'
+        }
       },
       intervals: {
         lead: 'VEYVO pošle trénink do tvého kalendáře v intervals.icu a ten ho předá do hodinek.',
@@ -252,6 +301,7 @@
           loading: 'Načítám uložený klíč…',
           encrypted: 'Klíč se ukládá šifrovaně v tomto počítači.',
           plain: 'Na Androidu se klíč ukládá do úložiště aplikace bez šifrování.',
+          plainIos: 'V iPhonu se klíč ukládá do úložiště aplikace bez šifrování.',
           memory: 'Tady se klíč drží jen do zavření aplikace.',
           removeTitle: 'Odebrat API klíč?',
           removeBody: 'VEYVO pak do intervals.icu nic nepošle, dokud klíč znovu nevložíš.',
@@ -383,7 +433,8 @@
         at: '{day} at {time}',
         format: {
           fit: '.fit file', garmin: 'straight to the Garmin watch', apple: '.workout file', zwo: '.zwo file',
-          intervals: 'intervals.icu', text: 'copied as text', print: 'printed', 'text-share': 'shared as text'
+          intervals: 'intervals.icu', text: 'copied as text', print: 'printed', 'text-share': 'shared as text',
+          'apple-watch': 'Apple Watch', 'apple-schedule': 'scheduled on Apple Watch'
         }
       },
       dest: { title: 'Where should it go?', sub: 'Pick your watch or app', label: 'Watch or app' },
@@ -394,7 +445,7 @@
       },
       method: {
         fit: '.fit file over USB', intervals: 'Via intervals.icu', apple: '.workout file', zwo: '.zwo file',
-        text: 'Text and print', textShare: 'Text and sharing'
+        text: 'Text and print', textShare: 'Text and sharing', garminPhone: 'intervals.icu or .fit', appleNative: 'Straight to the watch'
       },
       action: {
         download: 'Download {ext}', share: 'Share {ext}…', openFolder: 'Show in folder',
@@ -444,7 +495,18 @@
         n2: 'The workout stays on the watch only; it does not appear in Garmin Connect.',
         n3: 'If the workout does not show up, restart the watch.',
         android: 'A phone cannot copy the file to a Garmin watch. Send it to a computer, or use Garmin, no cable.',
-        androidSwitch: 'Switch to Garmin, no cable'
+        androidSwitch: 'Switch to Garmin, no cable',
+        phone: {
+          lead: 'From a phone, a workout reaches your Garmin watch through intervals.icu: VEYVO sends it to your intervals.icu calendar, from there it goes to Garmin Connect, and the watch picks it up when it syncs.',
+          use: 'Send through intervals.icu',
+          why: 'Garmin Connect cannot import workout files, so from a phone, workouts go through intervals.icu.',
+          advanced: 'Advanced: USB from a computer',
+          usbLead: 'A .fit file only goes onto the watch by cable from a computer.',
+          s1: 'Send the file to your computer, for example by e-mail or cloud storage.',
+          s2: 'Connect the watch to the computer with the USB cable and open it.',
+          s4: 'Copy in the file',
+          s4Pending: 'Copy in the file you share with the button above.'
+        }
       },
       apple: {
         lead: 'The workout is saved as a .workout file that your iPhone adds to the Workout app.',
@@ -458,7 +520,26 @@
         add: 'Add to Apple Watch',
         req: 'You need an iPhone with iOS 17 or later and an Apple Watch with watchOS 10 or later.',
         fallback: 'Cannot open the file? The WatchFit app on the iPhone also reads the .fit file.',
-        unofficial: 'Unofficial format: Apple has not published it; VEYVO writes it from a reverse-engineered structure.'
+        unofficial: 'Unofficial format: Apple has not published it; VEYVO writes it from a reverse-engineered structure.',
+        s1Phone: 'Tap Share .workout and choose Save to Files.',
+        s2Phone: 'In the Files app, tap the saved file.',
+        native: {
+          lead: 'VEYVO hands the workout straight to Apple: Apple’s workout preview opens, and one tap there adds it to your Apple Watch.',
+          today: 'today',
+          s1: 'Choose whether you run outdoors or on a treadmill.',
+          s2: 'Tap Add to Apple Watch and add the workout to the watch in Apple’s preview.',
+          s3: 'On the watch, open Workout, pick a run and find the workout among your custom workouts.',
+          official: 'Uses Apple’s official WorkoutKit. The watch must be paired with this iPhone.',
+          opening: 'Opening the workout preview…',
+          closed: 'The preview is closed. If you added the workout, it is in the Workout app on the watch, under running.',
+          planTitle: 'Schedule on the watch',
+          planLead: 'The workout appears among the scheduled workouts in the Workout app on the watch. It replaces another VEYVO workout on the same day.',
+          plan: 'Schedule for {day}',
+          planning: 'Scheduling the workout…',
+          planned: 'Scheduled for {day}. The workout reaches the watch at its next sync.',
+          replaced: 'The previous VEYVO workout for that day was replaced.',
+          file: 'Advanced: .workout file'
+        }
       },
       intervals: {
         lead: 'VEYVO puts the workout on your intervals.icu calendar, which passes it on to the watch.',
@@ -485,6 +566,7 @@
           loading: 'Loading the saved key…',
           encrypted: 'The key is stored encrypted on this computer.',
           plain: 'On Android the key is stored in the app storage without encryption.',
+          plainIos: 'On iPhone the key is stored in the app storage without encryption.',
           memory: 'Here the key is kept only until the app closes.',
           removeTitle: 'Remove the API key?',
           removeBody: 'VEYVO will not send anything to intervals.icu until you paste a key again.',
@@ -749,11 +831,30 @@
   }
   function extOf(kind) { return kind === 'apple' ? '.workout' : kind === 'zwo' ? '.zwo' : kind === 'txt' ? '.txt' : '.fit'; }
 
+  /**
+   * True when the Garmin card should steer to intervals.icu: a store build (app.build.store) on
+   * Android. Garmin Connect cannot import workout files and a phone has no USB route to the watch,
+   * so the .fit file stays only as a secondary option there. The iPhone app always does this (a phone
+   * with no USB route). Desktop and the GitHub APK keep the USB flow first.
+   */
+  function garminViaIntervals(kind, build) { return kind === 'ios' || (kind === 'android' && !!(build && build.store)); }
+
+  /**
+   * True when the Apple Watch card uses Apple's WorkoutKit directly: the iPhone app with the native
+   * plugin on iOS 17+ (VeyvoPlatform.watch.supported). Otherwise the card offers the .workout file.
+   */
+  function appleNative(platform) { return !!(platform && platform.kind === 'ios' && platform.watch && platform.watch.supported); }
+
+  /** The day "Naplánovat" uses: the workout's own date from today on, else today. */
+  function watchDate(workout, today) { return workout && isKey(workout.date) && workout.date >= today ? workout.date : today; }
+
   // ================================================================ the sheet
   function openSheet(params) {
     const platform = Platform();
     const kind = platform ? platform.kind : 'web';
-    const isAndroid = kind === 'android';
+    // A phone shell (Android, iPhone): saveFile opens the share sheet, so file buttons say "Sdílet".
+    const isPhoneShell = kind === 'android' || kind === 'ios';
+    const garminPhone = garminViaIntervals(kind, app.build);
     const resolved = resolveWorkout(params, app.derived());
     const view = {
       params: params || {},
@@ -761,7 +862,7 @@
       workout: resolved ? resolved.workout : null,
       originalName: resolved ? resolved.workout.name : '',
       nameEdited: false,
-      brand: lastBrand(app.state(), app.storage.get),
+      brand: lastBrand(app.state(), app.storage.get) || (kind === 'ios' ? 'apple' : null),
       brandAnim: false,
       first: true,
       status: {},            // action key -> { kind: 'busy' | 'ok' | 'error' | 'info', text, path?, file?, fresh }
@@ -770,6 +871,8 @@
       pushDate: null,
       dateError: null,
       appleLocation: 'outdoor',
+      appleFileOpen: false,  // iPhone with WorkoutKit: the "Pro pokročilé: soubor .workout" disclosure
+      garminUsbOpen: false,  // store build on Android: the "Pro pokročilé: USB z počítače" disclosure
       copiedUntil: 0
     };
     const today = app.today();
@@ -1052,12 +1155,14 @@
     }
 
     function methodLabel(b) {
-      if (b.flow === 'text') return t(isAndroid ? 'method.textShare' : 'method.text');
+      if (b.flow === 'text') return t(isPhoneShell ? 'method.textShare' : 'method.text');
+      if (b.id === 'garmin' && garminPhone) return t('method.garminPhone');
+      if (b.id === 'apple' && appleNative(Platform())) return t('method.appleNative');
       return t('method.' + b.flow);
     }
 
     function brandGrid() {
-      const tiles = BRANDS.map((b, i) => {
+      const tiles = visibleBrands(Platform()).map((b, i) => {
         const on = view.brand === b.id;
         return h('button.ws-brand', {
           type: 'button', role: 'radio', 'aria-checked': on ? 'true' : 'false',
@@ -1184,7 +1289,7 @@
     function exportBlockedNote(check) {
       return check.ok ? null : h('p.ws-blocked', icons.get('warning', { size: 14 }), t('export.invalid'));
     }
-    function saveLabel(kindKey) { return t(isAndroid ? 'action.share' : 'action.download', { ext: extOf(kindKey) }); }
+    function saveLabel(kindKey) { return t(isPhoneShell ? 'action.share' : 'action.download', { ext: extOf(kindKey) }); }
     function folderButton(st) {
       const p = Platform();
       if (!st || st.kind !== 'ok' || !st.savedPath || !p || !p.supports || !p.supports.showInFolder) return null;
@@ -1198,16 +1303,17 @@
       return !!(p && p.kind === 'desktop' && p.garmin && p.garmin.supported);
     }
     function flowGarmin(b, check) {
+      if (garminPhone) return flowGarminPhone(check);
       const ok = canExport(check);
       const st = view.status.fit;
       const fileName = view.workout && Fit() ? Fit().fileName(view.workout) : '';
       const busy = st && st.kind === 'busy';
       const parts = [
         lead(t('garmin.lead')),
-        isAndroid ? h('div.callout.callout-info.ws-callout', icons.get('info'),
+        isPhoneShell ? h('div.callout.callout-info.ws-callout', icons.get('info'),
           h('div', t('garmin.android'), h('div.ws-callout-actions', h('button.btn-link.ws-link', { type: 'button', dataset: { key: 'ws-switch-cloud' }, onClick: () => selectBrand('garminCloud') }, t('garmin.androidSwitch'), icons.get('arrow-right', { className: 'ic-end' }))))) : null,
         h('div.ws-actions',
-          btn(saveLabel('fit'), isAndroid ? 'share' : 'download', () => saveExport('fit'), { primary: true, lg: true, key: 'ws-save-fit', disabled: !ok, busy })),
+          btn(saveLabel('fit'), isPhoneShell ? 'share' : 'download', () => saveExport('fit'), { primary: true, lg: true, key: 'ws-save-fit', disabled: !ok, busy })),
         statusNode('fit', [folderButton(st)].filter(Boolean)),
         exportBlockedNote(check),
         garminUsb() ? driveBlock(ok) : null,
@@ -1222,6 +1328,38 @@
         notes([t('garmin.n0'), t('garmin.n1'), t('garmin.n2'), t('garmin.n3')])
       ];
       return parts;
+    }
+    /** Store build on Android: intervals.icu first, the .fit file behind "Pro pokročilé: USB z počítače". */
+    function flowGarminPhone(check) {
+      const ok = canExport(check);
+      const st = view.status.fit;
+      const fileName = view.workout && Fit() ? Fit().fileName(view.workout) : '';
+      const usb = h('details.ws-adv', { open: view.garminUsbOpen, dataset: { key: 'ws-garmin-usb' } },
+        h('summary.ws-adv-sum', icons.get('chevron-right', { className: 'ws-adv-chev', size: 16 }), h('span', t('garmin.phone.advanced'))),
+        h('div.ws-adv-body',
+          h('p.ws-adv-lead', t('garmin.phone.usbLead')),
+          h('div.ws-actions',
+            btn(saveLabel('fit'), 'share', () => saveExport('fit'), { key: 'ws-save-fit', disabled: !ok, busy: st && st.kind === 'busy' })),
+          statusNode('fit'),
+          exportBlockedNote(check),
+          howto([
+            t('garmin.phone.s1'),
+            t('garmin.phone.s2'),
+            withPath(t('garmin.s3'), [t('garmin.path.storage'), t('garmin.path.garmin'), t('garmin.path.newFiles')], '.'),
+            fileName ? [t('garmin.phone.s4'), ' ', codeChip(fileName), '.'] : t('garmin.phone.s4Pending'),
+            t('garmin.s5'),
+            withPath(t('garmin.s6'), [t('garmin.path.training'), t('garmin.path.workouts')], '.')
+          ]),
+          notes([t('garmin.n1'), t('garmin.n2')])));
+      usb.addEventListener('toggle', () => { view.garminUsbOpen = usb.open; });
+      return [
+        lead(t('garmin.phone.lead')),
+        h('div.ws-actions',
+          h('button.btn.btn-primary.btn-lg', { type: 'button', dataset: { key: 'ws-garmin-cloud' }, onClick: () => selectBrand('garminCloud') },
+            t('garmin.phone.use'), icons.get('arrow-right', { className: 'ic-end' }))),
+        notes([t('garmin.phone.why')], false),
+        usb
+      ];
     }
     function driveBlock(ok) {
       const drives = view.drives;
@@ -1282,34 +1420,101 @@
     }
 
     // ---------------------------------------------------------------- Apple Watch
-    function flowApple(b, check) {
-      const ok = canExport(check);
-      const st = view.status.apple;
+    function appleWhere() {
       const where = app.components.create('segmented', {
         label: t('apple.where'), value: view.appleLocation, key: 'ws-apple-loc',
         options: [{ value: 'outdoor', label: t('apple.outdoor') }, { value: 'indoor', label: t('apple.indoor') }],
         onChange: v => { view.appleLocation = v; }
       });
+      return h('div.ws-option', h('span.field-label', t('apple.where')), where);
+    }
+    /** The .workout file and the WatchFit .fit fallback (desktop, Android, iPhone below iOS 17). */
+    function appleFileParts(check) {
+      const ok = canExport(check);
+      const st = view.status.apple;
+      const onIphone = kind === 'ios';
       return [
-        lead(t('apple.lead')),
-        h('div.ws-option', h('span.field-label', t('apple.where')), where),
         h('div.ws-actions',
-          btn(saveLabel('apple'), isAndroid ? 'share' : 'download', () => saveExport('apple'), { primary: true, lg: true, key: 'ws-save-apple', disabled: !ok, busy: st && st.kind === 'busy' })),
+          btn(saveLabel('apple'), isPhoneShell ? 'share' : 'download', () => saveExport('apple'), { primary: !appleNative(Platform()), lg: !appleNative(Platform()), key: 'ws-save-apple', disabled: !ok, busy: st && st.kind === 'busy' })),
         statusNode('apple', [folderButton(st)].filter(Boolean)),
-        exportBlockedNote(check),
         howto([
-          t('apple.s1'),
-          t('apple.s2'),
+          t(onIphone ? 'apple.s1Phone' : 'apple.s1'),
+          t(onIphone ? 'apple.s2Phone' : 'apple.s2'),
           withPath(t('apple.s3'), [t('apple.add')], '.'),
           t('apple.s4')
         ]),
-        notes([t('apple.req')]),
         h('div.ws-fallback',
           h('p', t('apple.fallback')),
-          btn(saveLabel('fit'), isAndroid ? 'share' : 'download', () => saveExport('fit', 'appleFit'), { key: 'ws-save-apple-fit', disabled: !ok, busy: view.status.appleFit && view.status.appleFit.kind === 'busy', cls: 'btn-sm' }),
+          btn(saveLabel('fit'), isPhoneShell ? 'share' : 'download', () => saveExport('fit', 'appleFit'), { key: 'ws-save-apple-fit', disabled: !ok, busy: view.status.appleFit && view.status.appleFit.kind === 'busy', cls: 'btn-sm' }),
           statusNode('appleFit', [folderButton(view.status.appleFit)].filter(Boolean))),
         h('p.ws-unofficial', icons.get('info', { size: 14 }), t('apple.unofficial'))
       ];
+    }
+    function flowApple(b, check) {
+      if (appleNative(Platform())) return flowAppleNative(check);
+      const parts = appleFileParts(check);
+      return [
+        lead(t('apple.lead')),
+        appleWhere(),
+        parts[0], parts[1],
+        exportBlockedNote(check),
+        parts[2],
+        notes([t('apple.req')]),
+        parts[3], parts[4]
+      ];
+    }
+    /** iPhone with iOS 17+: Apple's WorkoutKit (VeyvoPlatform.watch); the file is the advanced option. */
+    function flowAppleNative(check) {
+      const ok = canExport(check);
+      const watch = Platform().watch;
+      const stAdd = view.status.watchAdd, stPlan = view.status.watchPlan;
+      const day = watchDate(view.workout, app.today());
+      const dayText = day === app.today() ? t('apple.native.today') : fmt.date(day, 'dayMonth');
+      const file = h('details.ws-adv', { open: view.appleFileOpen, dataset: { key: 'ws-apple-file' } },
+        h('summary.ws-adv-sum', icons.get('chevron-right', { className: 'ws-adv-chev', size: 16 }), h('span', t('apple.native.file'))),
+        h('div.ws-adv-body', h('p.ws-adv-lead', t('apple.lead')), appleFileParts(check)));
+      file.addEventListener('toggle', () => { view.appleFileOpen = file.open; });
+      return [
+        lead(t('apple.native.lead')),
+        appleWhere(),
+        h('div.ws-actions',
+          btn(t('apple.add'), 'watch', watchAdd, { primary: true, lg: true, key: 'ws-watch-add', disabled: !ok, busy: stAdd && stAdd.kind === 'busy' })),
+        statusNode('watchAdd'),
+        exportBlockedNote(check),
+        watch.canSchedule ? h('div.ws-watch-plan',
+          h('h4.ws-h4', t('apple.native.planTitle')),
+          h('p.ws-watch-plan-text', t('apple.native.planLead', { day: dayText })),
+          h('div.ws-actions',
+            btn(t('apple.native.plan', { day: dayText }), 'calendar-plus', () => watchPlan(day), { key: 'ws-watch-plan', disabled: !ok, busy: stPlan && stPlan.kind === 'busy' })),
+          statusNode('watchPlan')) : null,
+        howto([t('apple.native.s1'), t('apple.native.s2'), t('apple.native.s3')]),
+        notes([t('apple.req'), t('apple.native.official')]),
+        file
+      ];
+    }
+    async function watchAdd() {
+      if (!validation().ok || (view.status.watchAdd && view.status.watchAdd.kind === 'busy')) return;
+      setStatus('watchAdd', { kind: 'busy', text: t('apple.native.opening') });
+      try {
+        await Platform().watch.preview(view.workout, { indoor: view.appleLocation === 'indoor', locale: locale() });
+        setStatus('watchAdd', { kind: 'info', text: t('apple.native.closed') });
+        logExport(FORMAT.appleWatch);
+      } catch (err) {
+        setStatus('watchAdd', { kind: 'error', text: app.errorText(err) });
+      }
+    }
+    async function watchPlan(day) {
+      if (!validation().ok || (view.status.watchPlan && view.status.watchPlan.kind === 'busy')) return;
+      setStatus('watchPlan', { kind: 'busy', text: t('apple.native.planning') });
+      try {
+        const r = await Platform().watch.schedule(view.workout, day, { indoor: view.appleLocation === 'indoor', locale: locale() });
+        const when = r.date === app.today() ? t('apple.native.today') : fmt.date(r.date, 'dayMonth');
+        const text = t('apple.native.planned', { day: when }) + (r.replaced > 0 ? ' ' + t('apple.native.replaced') : '');
+        setStatus('watchPlan', { kind: 'ok', text });
+        logExport(FORMAT.appleSchedule);
+      } catch (err) {
+        setStatus('watchPlan', { kind: 'error', text: app.errorText(err) });
+      }
     }
 
     // ---------------------------------------------------------------- intervals.icu
@@ -1368,6 +1573,7 @@
       const p = Platform();
       if (p && p.secrets && p.secrets.encrypted) return t('intervals.key.encrypted');
       if (p && p.kind === 'android') return t('intervals.key.plain');
+      if (p && p.kind === 'ios') return t('intervals.key.plainIos');
       return t('intervals.key.memory');
     }
     function keySaved() {
@@ -1532,7 +1738,7 @@
         lead(t('zwo.lead')),
         ok && !opts ? h('div.callout.callout-warn.ws-callout', icons.get('warning'), h('div', t('zwo.noPace'))) : null,
         ok && opts && zc && !zc.ok ? h('div.callout.callout-warn.ws-callout', icons.get('warning'), h('div', t('zwo.failed'))) : null,
-        h('div.ws-actions', btn(saveLabel('zwo'), isAndroid ? 'share' : 'download', () => saveExport('zwo'), { primary: true, lg: true, key: 'ws-save-zwo', disabled: !usable, busy: st && st.kind === 'busy' })),
+        h('div.ws-actions', btn(saveLabel('zwo'), isPhoneShell ? 'share' : 'download', () => saveExport('zwo'), { primary: true, lg: true, key: 'ws-save-zwo', disabled: !usable, busy: st && st.kind === 'busy' })),
         statusNode('zwo', [folderButton(st)].filter(Boolean)),
         exportBlockedNote(check),
         howto(steps),
@@ -1556,7 +1762,7 @@
           type: 'button', class: ['btn', 'btn-primary', 'btn-lg', 'ws-copy', copied && 'is-copied'], disabled: ok ? null : true,
           dataset: { key: 'ws-copy' }, onClick: copyText
         }, icons.get(copied ? 'check' : 'copy', { className: copied ? 'ws-pop' : null }), copied ? t('action.copied') : t('action.copy')),
-        isAndroid
+        isPhoneShell
           ? btn(t('action.shareText'), 'share', () => saveExport('txt'), { key: 'ws-share-text', disabled: !ok, busy: view.status.txt && view.status.txt.kind === 'busy' })
           : btn(t('action.print'), 'printer', printWorkout, { key: 'ws-print', disabled: !ok }));
     }
@@ -1568,12 +1774,12 @@
         const zc = opts && ok ? Zwo().check(view.workout, opts) : null;
         extra.push(h('div.ws-fallback',
           h('p', t('text.polar')),
-          btn(saveLabel('zwo'), isAndroid ? 'share' : 'download', () => saveExport('zwo', 'polarZwo'), { key: 'ws-save-polar-zwo', cls: 'btn-sm', disabled: !(ok && zc && zc.ok), busy: view.status.polarZwo && view.status.polarZwo.kind === 'busy' }),
+          btn(saveLabel('zwo'), isPhoneShell ? 'share' : 'download', () => saveExport('zwo', 'polarZwo'), { key: 'ws-save-polar-zwo', cls: 'btn-sm', disabled: !(ok && zc && zc.ok), busy: view.status.polarZwo && view.status.polarZwo.kind === 'busy' }),
           statusNode('polarZwo', [folderButton(view.status.polarZwo)].filter(Boolean))));
       } else if (b.id === 'other') {
         extra.push(h('div.ws-fallback',
           h('p', t('text.other')),
-          btn(saveLabel('fit'), isAndroid ? 'share' : 'download', () => saveExport('fit', 'otherFit'), { key: 'ws-save-other-fit', cls: 'btn-sm', disabled: !ok, busy: view.status.otherFit && view.status.otherFit.kind === 'busy' }),
+          btn(saveLabel('fit'), isPhoneShell ? 'share' : 'download', () => saveExport('fit', 'otherFit'), { key: 'ws-save-other-fit', cls: 'btn-sm', disabled: !ok, busy: view.status.otherFit && view.status.otherFit.kind === 'busy' }),
           statusNode('otherFit', [folderButton(view.status.otherFit)].filter(Boolean))));
       } else {
         extra.push(notes([t('text.' + b.id)], false));
@@ -1581,7 +1787,7 @@
       const text = ok ? currentText() : '';
       refs.textPreview = ok ? h('pre.ws-text', { tabindex: '0', 'aria-label': t('text.preview') }, text) : null;
       return [
-        lead(t(isAndroid ? 'text.leadShare' : 'text.lead')),
+        lead(t(isPhoneShell ? 'text.leadShare' : 'text.lead')),
         textActions(check),
         statusNode('text'),
         statusNode('print'),
@@ -1708,7 +1914,7 @@
       let file;
       try { file = buildFile(kindKey); }
       catch (err) { setStatus(key, { kind: 'error', text: exportErrorText(err) }); return; }
-      setStatus(key, { kind: 'busy', text: t(isAndroid ? 'status.sharing' : 'status.saving') });
+      setStatus(key, { kind: 'busy', text: t(isPhoneShell ? 'status.sharing' : 'status.saving') });
       try {
         const r = await Platform().saveFile(file);
         if (!r || r.canceled || !r.saved) { setStatus(key, null); return; }
@@ -1792,6 +1998,13 @@
     // Remembered brand: start its flow's background work (drive search, saved key).
     if (startScan) scanDrives(true);
     if (startKey) loadKey();
+    // iPhone: the user agent's iOS version was a first guess; the native plugin has the final answer.
+    if (platform && platform.kind === 'ios' && platform.watch && platform.watch.supported && typeof platform.watch.check === 'function') {
+      const before = [platform.watch.supported, platform.watch.canSchedule].join();
+      Promise.resolve().then(() => platform.watch.check()).then(() => {
+        if (!closed && [platform.watch.supported, platform.watch.canSchedule].join() !== before) settle();
+      }, () => {});
+    }
     return handle;
   }
 
@@ -1799,7 +2012,8 @@
   app.dialogs.register('workoutExport', { open: params => openSheet(params) });
 
   UI.workoutSheet = Object.freeze({
-    BRANDS, BRAND_IDS, FORMAT, MESSAGES, SECRET, LS_BRAND,
-    brandOf, resolveWorkout, idForDate, groupOf, profileBlocks, errorEntries, textFor, newFilesPath, lastBrand, easyPaceOf
+    BRANDS, BRAND_IDS, NOT_ON_IOS, visibleBrands, FORMAT, MESSAGES, SECRET, LS_BRAND,
+    brandOf, resolveWorkout, idForDate, groupOf, profileBlocks, errorEntries, textFor, newFilesPath, lastBrand, easyPaceOf,
+    garminViaIntervals, appleNative, watchDate
   });
 })(globalThis);

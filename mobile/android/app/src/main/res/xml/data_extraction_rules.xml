@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ backup rules. App data (runs, plan, settings) goes into the user's own Google backup as
+     before, but Capacitor Preferences (CapacitorStorage.xml) is left out: VEYVO keeps only secrets there
+     (the intervals.icu API key, unencrypted), so the key never reaches a cloud backup. A direct
+     phone-to-phone transfer still carries everything. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+    </cloud-backup>
+</data-extraction-rules>

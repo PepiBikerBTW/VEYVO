@@ -183,3 +183,43 @@ test('state.ui keeps lastExportBrand and every export format code passes VeyvoSt
     assert.ok(r.ok, format);
   }
 });
+
+test('iPhone: WorkoutKit when the platform supports it, the .workout file otherwise; Garmin via intervals.icu', () => {
+  const ios = (supported) => ({ kind: 'ios', watch: { supported } });
+  assert.equal(Sheet.appleNative(ios(true)), true);
+  assert.equal(Sheet.appleNative(ios(false)), false, 'below iOS 17 the file flow stays');
+  assert.equal(Sheet.appleNative({ kind: 'android', watch: { supported: true } }), false);
+  assert.equal(Sheet.appleNative({ kind: 'desktop' }), false);
+  assert.equal(Sheet.appleNative(null), false);
+  assert.equal(Sheet.watchDate({ date: '2026-11-29' }, '2026-11-27'), '2026-11-29', 'a planned day is scheduled on its day');
+  assert.equal(Sheet.watchDate({ date: '2026-11-20' }, '2026-11-27'), '2026-11-27', 'a past date becomes today');
+  assert.equal(Sheet.watchDate({}, '2026-11-27'), '2026-11-27');
+  assert.equal(Sheet.garminViaIntervals('ios', { channel: 'appstore', store: true }), true, 'an iPhone has no USB route to a Garmin watch');
+  assert.equal(Sheet.garminViaIntervals('ios', { channel: 'github', store: false }), true);
+  assert.equal(Sheet.FORMAT.appleWatch, 'apple-watch');
+  assert.equal(Sheet.FORMAT.appleSchedule, 'apple-schedule');
+  for (const locale of ['cs', 'en']) {
+    for (const key of ['lead', 'plan', 'planned', 'planLead', 'closed', 'official', 'file', 's1', 's2', 's3']) {
+      const text = I18n.t('workout.apple.native.' + key, { day: 'x' }, locale);
+      assert.ok(text && !/workout\.apple/.test(text), key + ' ' + locale);
+      assert.doesNotMatch(text, /Android|Windows|GitHub|\bAPK\b/, key + ' ' + locale);
+    }
+    assert.ok(I18n.has('workout.last.format.apple-watch', locale));
+    assert.ok(I18n.has('workout.intervals.key.plainIos', locale));
+    assert.doesNotMatch(I18n.t('workout.intervals.key.plainIos', null, locale), /Android/);
+  }
+  assert.equal(I18n.t('workout.apple.add', null, 'cs'), 'Přidat do Apple Watch');
+  assert.equal(I18n.t('workout.apple.native.plan', { day: 'dnešek' }, 'cs'), 'Naplánovat na dnešek');
+});
+
+test('iPhone / App Store build hides the Samsung and Pixel tiles (guideline 2.3.10); other builds show every brand', () => {
+  const ids = platform => Sheet.visibleBrands(platform).map(b => b.id);
+  for (const platform of [{ kind: 'ios', build: { channel: 'appstore' } }, { kind: 'web', build: { channel: 'appstore' } }]) {
+    const visible = ids(platform);
+    assert.ok(!visible.includes('samsung') && !visible.includes('pixel'), JSON.stringify(platform));
+    assert.ok(visible.includes('apple') && visible.includes('garmin') && visible.includes('other'));
+  }
+  for (const platform of [{ kind: 'android', build: { channel: 'play' } }, { kind: 'desktop', build: { channel: 'github' } }, undefined]) {
+    assert.deepEqual(ids(platform), Sheet.BRAND_IDS, JSON.stringify(platform));
+  }
+});

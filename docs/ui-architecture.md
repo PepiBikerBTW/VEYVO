@@ -34,6 +34,7 @@ Design base: concept A "Track". It uses graphite near-black, ONE orange signal (
 Every page or dialog file is currently a **stub** that registers a placeholder. Replace the whole file and keep the registration name. The page CSS files exist and are already linked from `index.html`, so **page agents never edit `index.html`**. If you need a new script, ask the integrator.
 
 Script order (checked by `tests/ui-foundation.test.js`):
+0. `build-info.js` (the build channel, see [Build channels](architecture.md#build-channels))
 1. Vendor and core: `vendor/workoutkit.js` → `core/format.js` → `core/i18n.js` → `core/runs-model.js` → `core/store.js` → `core/workouts.js` → `core/export/{fit,apple,zwo,intervals}.js`
 2. Engines and platform: `training-context.js` → `nutrition-context.js` → `platform.js`
 3. UI foundation: `ui/dom.js` → `ui/icons.js` → `ui/motion.js` → `ui/charts.js` → `ui/app.js`
@@ -80,6 +81,7 @@ Module pattern for UI files (classic script, no `module.exports`):
 | `setTheme('dark' \| 'light')` | Sets `<html data-theme>` and `theme-color`, sends `VeyvoPlatform.setTitleBarTheme({ color: --titlebar-bg, symbolColor: --titlebar-fg })`, saves `state.theme` and cross-fades through View Transitions. Emits `'theme'`. |
 | `setLanguage('cs' \| 'en')` | Calls `VeyvoI18n.setLocale`, sets `<html lang>`, saves `state.language` and re-renders everything. Emits `'language'`. |
 | `theme()`, `language()`, `isPhone()` | The current values. `isPhone()` means ≤ 760 px. |
+| `build` | `{ channel: 'github' \| 'play' \| 'appstore', store }` from `VeyvoPlatform.build`. A store build (`store: true`) shows no updater, no Strava and no text about the Windows app, APK files or GitHub; use a `…Store` text variant where a text would name them (checked by `tests/build-channel.test.js`). `<html data-channel>` carries the channel. |
 | `strava.supported` / `status()` / `sync({ manual })` / `connect(secret)` / `disconnect()` / `refresh()` / `toRun(activity)` | See §9. |
 | `updates.supported` / `status()` / `check()` / `install()` | See §9. |
 | `storage.get(key)` / `storage.set(key, value)` | Safe `localStorage` that never throws. Use it for small per-device flags. |
@@ -144,9 +146,10 @@ Never write to `localStorage['veyvo-state']` yourself. Nutrition keeps its own k
   - `logExport(state, { at, workoutId, format })`, which keeps the newest 50
   - `restoreIgnoredStrava(state, ids?)`
   - `importStravaRuns(state, runs)`
+  - `importHealthRuns(state, rows, { at })`, `restoreIgnoredHealth(state, ids?)`, `healthImportSince(state, now)` (iPhone, Apple Health; Settings › Propojení)
   - `applyUndo`
 
-Error and notice texts are under `store.error.<code>` and `store.notice.*`, including `runSaved`, `runUpdated`, `runDeleted`, `runDeletedStrava`, `recoverySaved`, `profileSaved`, `plannedSaved`, `plannedRemoved`, `stravaRestored` and `undo`.
+Error and notice texts are under `store.error.<code>` and `store.notice.*`, including `runSaved`, `runUpdated`, `runDeleted`, `runDeletedStrava`, `runDeletedHealth`, `healthRestored`, `recoverySaved`, `profileSaved`, `plannedSaved`, `plannedRemoved`, `stravaRestored` and `undo`.
 
 ---
 
@@ -257,7 +260,7 @@ Registered names and the params their callers use. Keep them stable; the shell a
 | `runLog`, `runDetail` | Aliases registered by `run-dialog.js`: `runLog { date?, type?, distanceKm?, prefill? }` or `{ runId }`, `runDetail { runId }`. |
 | `recovery` | `{ date? }` |
 | `workout` (alias `workoutExport`) | `{ workout?, date?, templateId? }`; none of them: `derived.nextWorkout`. |
-| `settings` | `{ section?: 'profile' \| 'appearance' \| 'connections' \| 'data' \| 'updates' \| 'about', connect?: true (opens the Strava connect form), backupText?, backupName? (import preview, used by onboarding) }` |
+| `settings` | `{ section?: 'profile' \| 'appearance' \| 'connections' \| 'data' \| 'updates' \| 'about', connect?: true (opens the Strava connect form), backupText?, backupName? (import preview, used by onboarding) }`. A store build has no `updates` section (it opens `about`) and no Strava group. |
 | `onboarding` | `{}` |
 | `more` | Shell, phone "Více" sheet. |
 
@@ -335,7 +338,7 @@ Pages may register their own components, e.g. `recoveryCheckin` (owned by `recov
   - **Errors are never swallowed.** They are stored in `strava.lastError` (shown in the sidebar slot as "Strava: chyba", with the text in the tooltip) and toasted with a Retry action. Background repeats of the same error are not re-toasted.
   - `electron/main.js` throws coded errors (`[code] message`, turned into `error.code` by `VeyvoPlatform`): `auth_required` for a 401/403 or a refused refresh token, `strava_http` for any other HTTP status, `network` when Strava is unreachable. `app.errorText` translates them (`ui.errors.code.*`) and keeps the status ("… (401) …"), so Settings shows "Vyžaduje nové přihlášení" after a background sync too.
   - Settings uses `app.strava.connect(secret)`, `disconnect()`, `sync({ manual: true })` and `status()`, and listens to `app.on('strava')`.
-- **Updates:**
+- **Updates:** (the `github` channel only; a store build has `app.updates.supported === false` and no Aktualizace section)
   - Desktop updater events go to `app.on('updates')` and `app.updates.status()`. `ready` shows a toast with "Restartovat" (`install()`).
   - Android checks GitHub once a day; `available` shows a toast with "Stáhnout". The day only counts once GitHub answered and a newer release already has its APK (offline: retried on the next launch or return to the app). A newer release without an APK is `{ type: 'newer', version, pageUrl }`, never "current". The last answer is kept in `localStorage['veyvo-update-status']` and shown after a restart while it fits the installed version.
   - Settings shows the current state and calls `check()` / `install()`.

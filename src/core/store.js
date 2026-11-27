@@ -6,8 +6,9 @@
  *   load(storage, { now, key }) / save(storage, state)
  *   exportBackup(state, nutritionRaw, { appVersion, exportedAt }) / parseBackup(text) / applyBackup
  *   mergeRuns(existing, incoming) / importStravaRuns(state, incoming)
+ *   importHealthRuns(state, rows, { at }) / healthRunFrom(row) / healthImportSince(state, now)
  *   validateRun, addRun, updateRun, deleteRun, upsertRecovery, deleteRecovery, setProfile, applyUndo
- *   schedulePlanned, unschedulePlanned, logExport, restoreIgnoredStrava
+ *   schedulePlanned, unschedulePlanned, logExport, restoreIgnoredStrava, restoreIgnoredHealth
  *
  * Classic UMD script: no DOM, no network. Nothing reads the clock inside a calculation; "today"
  * is passed as 'YYYY-MM-DD'. (Two I/O conveniences fall back to the clock only when the caller
@@ -41,9 +42,15 @@
   const DEFAULT_GOAL_KM = 5;
   const DEFAULT_TARGET_SECONDS = 1200;
 
-  const V2_KEYS = ['schemaVersion', 'profile', 'runHistory', 'recoveryLogs', 'legacyMilestones', 'ignoredStravaIds', 'plannedWorkouts', 'exportLog', 'theme', 'language', 'strava', 'intervals', 'ui'];
+  const V2_KEYS = ['schemaVersion', 'profile', 'runHistory', 'recoveryLogs', 'legacyMilestones', 'ignoredStravaIds', 'ignoredHealthIds', 'plannedWorkouts', 'exportLog', 'theme', 'language', 'strava', 'intervals', 'health', 'ui'];
   const LEGACY_KEYS = ['milestones', 'stravaActivityIds', 'stravaConnected', 'stravaLastSync', 'sharedChatUrl'];
-  const RUN_KEYS = ['id', 'source', 'date', 'startTime', 'type', 'distance', 'movingSeconds', 'effort', 'note', 'name', 'stravaActivityId', 'stravaMovingSeconds', 'averageHeartrate', 'elevationGain'];
+  const RUN_KEYS = ['id', 'source', 'date', 'startTime', 'type', 'distance', 'movingSeconds', 'effort', 'note', 'name', 'stravaActivityId', 'stravaMovingSeconds', 'averageHeartrate', 'elevationGain', 'healthId', 'maxHeartrate', 'sourceName'];
+  // Apple Health (iOS, VeyvoPlatform.health): the first import reads firstImportDays back, later ones
+  // start overlapDays before the last import (watch apps often sync a run into Health hours or days
+  // later). Two Health workouts with different ids are one run only when they started at most
+  // twinStartMinutes apart: two apps (Strava, Garmin Connect, the Workout app) wrote the same run.
+  const HEALTH = Object.freeze({ firstImportDays: 90, overlapDays: 7, twinStartMinutes: 10, maxIgnored: 5000, maxSourceName: 80 });
+  const HEALTH_ID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/;
   const LEGACY_RUN_KEYS = ['time', 'effortRecorded'];
   const RECOVERY_KEYS = ['date', 'sleepHours', 'fatigue', 'soreness', 'note'];
   const PLANNED_KEYS = ['date', 'templateId'];
@@ -199,6 +206,20 @@
     return null;
   }
 
+  /** An Apple Health workout id (HKWorkout UUID, upper case like Swift's uuidString) or null. */
+  function cleanHealthId(value) {
+    if (typeof value !== 'string') return null;
+    const text = value.trim().toUpperCase();
+    return HEALTH_ID_RE.test(text) ? text : null;
+  }
+  /** run.healthId, or the id of a 'health-<uuid>' run from Apple Health; null otherwise. */
+  function healthIdOf(run) {
+    const direct = cleanHealthId(run.healthId);
+    if (direct !== null) return direct;
+    if (run.source === 'health' && typeof run.id === 'string' && /^health-./.test(run.id.trim())) return cleanHealthId(run.id.trim().slice(7));
+    return null;
+  }
+
   // Run ids are used as object keys (VeyvoRuns.runNotes, UI lookups): never an Object.prototype name.
   const RESERVED_IDS = new Set(Object.getOwnPropertyNames(Object.prototype).concat(['__proto__', 'prototype']));
   function cleanId(value) {
@@ -253,12 +274,14 @@
       recoveryLogs: [],
       legacyMilestones: [],
       ignoredStravaIds: [],
+      ignoredHealthIds: [],
       plannedWorkouts: [],
       exportLog: [],
       theme: 'dark',
       language: 'cs',
       strava: { connected: false, lastSync: null, lastError: null },
       intervals: { enabled: false, lastPush: null, lastError: null },
+      health: { enabled: false, lastImport: null, lastError: null },
       ui: { lastSeenVersion: null }
     };
   }
@@ -302,12 +325,17 @@
     if (movingSeconds === null) return drop('duration-invalid');
 
     const stravaId = stravaIdOf(raw);
-    const source = stravaId !== null || raw.source === 'strava' ? 'strava' : 'manual';
+    // Apple Health: source 'health' with the HKWorkout UUID as healthId and the id 'health-<uuid>'. A
+    // manual or Strava run that absorbed its Health copy keeps its own source and gains the healthId.
+    const healthId = healthIdOf(raw);
+    const source = stravaId !== null || raw.source === 'strava' ? 'strava' : healthId !== null && raw.source === 'health' ? 'health' : 'manual';
     // 0.3.4 shared-chat import: source 'chatgpt', date + 'T12:00:00' (a made-up noon, not a start time).
     const fromChat = stravaId === null && (raw.source === 'chatgpt' || (typeof raw.id === 'string' && /^chatgpt-/.test(raw.id.trim())));
     const id = stravaId !== null ? 'strava-' + stravaId
+      : source === 'health' ? 'health-' + healthId
       : cleanId(raw.id) || 'm-' + date.replace(/-/g, '') + '-' + Math.round(distance * 1000) + '-' + movingSeconds;
     const fieldInvalid = (field, value) => warn(warnings, 'run-field-invalid', Object.assign({}, where, { id, field, value: cloneJson(value) === undefined ? null : cloneJson(value) }));
+    if ((filled(raw.healthId) && cleanHealthId(raw.healthId) === null) || (raw.source === 'health' && healthId === null)) fieldInvalid('healthId', raw.healthId);
 
     let startTime = null;
     if (filled(raw.startTime)) {
@@ -357,14 +385,26 @@
       stravaMovingSeconds = durationFrom(raw.stravaMovingSeconds);
       if (stravaMovingSeconds === null) fieldInvalid('stravaMovingSeconds', raw.stravaMovingSeconds);
     }
+    let maxHeartrate = null;
+    if (filled(raw.maxHeartrate)) {
+      const n = toNumber(raw.maxHeartrate);
+      if (n > 0 && n <= 300) maxHeartrate = n; else fieldInvalid('maxHeartrate', raw.maxHeartrate);
+    }
+    // The app that wrote the run into Apple Health ('Garmin Connect', 'Strava', 'Cvičení').
+    let sourceName = '';
+    if (typeof raw.sourceName === 'string') sourceName = truncate(cleanName(raw.sourceName), HEALTH.maxSourceName);
+    else if (filled(raw.sourceName)) fieldInvalid('sourceName', raw.sourceName);
 
     const run = { id, source, date, startTime, type, distance, movingSeconds, effort, note };
     if (fromChat) run.importedFrom = 'chatgpt';
     if (name) run.name = name;
     if (stravaId !== null) run.stravaActivityId = stravaId;
     if (stravaMovingSeconds !== null) run.stravaMovingSeconds = stravaMovingSeconds;
-    if (source === 'strava' || averageHeartrate !== null) run.averageHeartrate = averageHeartrate;
+    if (healthId !== null) run.healthId = healthId;
+    if (source === 'strava' || source === 'health' || averageHeartrate !== null) run.averageHeartrate = averageHeartrate;
+    if (maxHeartrate !== null) run.maxHeartrate = maxHeartrate;
     if (source === 'strava' || elevationGain !== null) run.elevationGain = elevationGain;
+    if (sourceName) run.sourceName = sourceName;
     return copyExtras(run, raw, RUN_KEYS.concat(LEGACY_RUN_KEYS));
   }
 
@@ -388,7 +428,8 @@
     for (const item of items) {
       const previous = seen.get(item.run.id);
       if (previous) {
-        if ((previous.stravaActivityId && previous.stravaActivityId === item.run.stravaActivityId) || sameContent(previous, item.run)) {
+        if ((previous.stravaActivityId && previous.stravaActivityId === item.run.stravaActivityId) ||
+          (previous.healthId && previous.healthId === item.run.healthId) || sameContent(previous, item.run)) {
           warn(warnings, 'run-duplicate-dropped', { list: name, index: item.index, id: item.run.id, record: item.run });
           continue;
         }
@@ -413,19 +454,24 @@
     if (seconds === null) seconds = clockDurationFrom(run.time);
     if (!isDateKey(date) || !(distance > 0) || seconds === null) return null;
     const stravaId = stravaIdOf(run);
+    const healthId = healthIdOf(run);
     const startTime = filled(run.startTime) ? normalizeClock(run.startTime) : null;
-    return { date, distance, seconds, stravaId, startTime };
+    return { date, distance, seconds, stravaId, healthId, startTime };
   }
 
   /**
    * True when a and b look like the same activity: same date, |delta km| < 0.15, |delta s| < 90,
    * not two different Strava activities, and start times (when both known) under 2 h apart.
+   * Two different Apple Health workouts are one run only when both start times are known and at
+   * most HEALTH.twinStartMinutes apart (two apps wrote the same run into Health).
    * Unlike VeyvoRuns.findDuplicate the sources may be equal (same run logged on two devices).
    */
   function isDuplicateRun(a, b) {
     const x = runFacts(a), y = runFacts(b);
     if (!x || !y || x.date !== y.date) return false;
     if (x.stravaId !== null && y.stravaId !== null && x.stravaId !== y.stravaId) return false;
+    if (x.healthId !== null && y.healthId !== null && x.healthId !== y.healthId &&
+      !(x.startTime && y.startTime && Math.abs(clockMinutes(x.startTime) - clockMinutes(y.startTime)) <= HEALTH.twinStartMinutes)) return false;
     if (!(roundTo(Math.abs(x.distance - y.distance), 6) < DUPLICATE.km)) return false;
     if (!(Math.abs(x.seconds - y.seconds) < DUPLICATE.seconds)) return false;
     if (x.startTime && y.startTime && Math.abs(clockMinutes(x.startTime) - clockMinutes(y.startTime)) >= DUPLICATE.startMinutes) return false;
@@ -437,9 +483,21 @@
    * Strava copy gives id, activity id, name, heart rate, elevation and start time; the manual copy
    * gives date, type, distance, moving time, effort and note (owner decision 2026-11-27: the time
    * typed by hand is authoritative). Strava's own moving time is kept as stravaMovingSeconds.
+   * Apple Health copy + a manual or Strava record: the record stays as it is (id, source, date, type,
+   * distance, moving time, effort, note, name) and Health only fills its blanks (HEALTH_FILLS: start
+   * time, heart rate, elevation, the writing app and the Health workout id).
    * Same source: existing wins and only fills its blanks from incoming.
    */
+  const HEALTH_FILLS = ['startTime', 'averageHeartrate', 'maxHeartrate', 'elevationGain', 'sourceName', 'healthId'];
   function combineRuns(existing, incoming) {
+    if ((existing.source === 'health') !== (incoming.source === 'health')) {
+      const record = existing.source === 'health' ? incoming : existing, health = existing.source === 'health' ? existing : incoming;
+      const kept = Object.assign({}, health, record);
+      for (const k of HEALTH_FILLS) if (blank(record[k]) && filled(health[k])) kept[k] = health[k];
+      kept.id = record.id;
+      kept.source = record.source;
+      return normalizeRun(kept, { index: -1, warnings: null }) || existing;
+    }
     const merged = Object.assign({}, incoming, existing);
     const existingStrava = existing.source === 'strava', incomingStrava = incoming.source === 'strava';
     if (existingStrava !== incomingStrava) {
@@ -459,7 +517,7 @@
       merged.effort = filled(manual.effort) ? manual.effort : (filled(strava.effort) ? strava.effort : null);
       merged.note = manual.note || strava.note || '';
     } else {
-      for (const k of ['startTime', 'effort', 'name', 'stravaMovingSeconds', 'averageHeartrate', 'elevationGain']) {
+      for (const k of ['startTime', 'effort', 'name', 'stravaMovingSeconds', 'averageHeartrate', 'elevationGain', 'maxHeartrate', 'sourceName', 'healthId']) {
         if (blank(existing[k]) && filled(incoming[k])) merged[k] = incoming[k];
       }
       if (!existing.note && incoming.note) merged.note = incoming.note;
@@ -470,9 +528,9 @@
 
   /**
    * mergeRuns(existing, incoming) -> { runs, added, updated, unchanged, invalid, warnings }.
-   * An incoming run matches an existing one by id, then by Strava activity id, then by the
-   * duplicate rule (closest existing run that is not matched yet). Matches are combined
-   * (combineRuns), everything else is added. Neither input is mutated; runs are sorted.
+   * An incoming run matches an existing one by id, then by Strava activity id, then by Apple Health
+   * workout id, then by the duplicate rule (closest existing run that is not matched yet). Matches
+   * are combined (combineRuns), everything else is added. Neither input is mutated; runs are sorted.
    */
   function mergeRuns(existing, incoming) {
     const warnings = [];
@@ -481,12 +539,17 @@
     const extra = normalizeRunList(incoming, warnings, 'incoming');
     const invalid = warnings.slice(before).filter(w => w.code === 'run-dropped').length;
     const baseCount = runs.length;
-    const byId = new Map(), byStrava = new Map(), matched = new Set();
-    runs.forEach((run, i) => { byId.set(run.id, i); if (run.stravaActivityId) byStrava.set(run.stravaActivityId, i); });
+    const byId = new Map(), byStrava = new Map(), byHealth = new Map(), matched = new Set();
+    runs.forEach((run, i) => {
+      byId.set(run.id, i);
+      if (run.stravaActivityId) byStrava.set(run.stravaActivityId, i);
+      if (run.healthId) byHealth.set(run.healthId, i);
+    });
     let added = 0, updated = 0, unchanged = 0;
     for (const run of extra) {
       let at = byId.get(run.id);
       if (at === undefined && run.stravaActivityId) at = byStrava.get(run.stravaActivityId);
+      if (at === undefined && run.healthId) at = byHealth.get(run.healthId);
       if (at === undefined) {
         let bestScore = Infinity;
         for (let i = 0; i < baseCount; i++) {
@@ -498,6 +561,7 @@
       if (at === undefined) {
         byId.set(run.id, runs.length);
         if (run.stravaActivityId) byStrava.set(run.stravaActivityId, runs.length);
+        if (run.healthId) byHealth.set(run.healthId, runs.length);
         runs.push(run);
         added++;
         continue;
@@ -508,6 +572,7 @@
       if (deepEqual(current, merged)) { unchanged++; continue; }
       if (merged.id !== current.id) { byId.delete(current.id); byId.set(merged.id, at); }
       if (merged.stravaActivityId) byStrava.set(merged.stravaActivityId, at);
+      if (merged.healthId) byHealth.set(merged.healthId, at);
       runs[at] = merged;
       updated++;
     }
@@ -618,25 +683,39 @@
     return out;
   }
 
-  // ---------------------------------------------------------------- ignored Strava ids, planned sessions, export log
+  // ---------------------------------------------------------------- ignored Strava / Health ids, planned sessions, export log
 
-  /** Deduplicated Strava activity ids the runner deleted; invalid entries reported. */
-  function normalizeIgnoredIds(list, warnings) {
+  /**
+   * Deduplicated ids from a list (newest `max` kept); invalid entries reported. `field` names the
+   * list in the warnings of every list but ignoredStravaIds (whose warnings predate the Health list).
+   */
+  function normalizeIdList(list, warnings, field, clean, max) {
+    const tag = field === 'ignoredStravaIds' ? {} : { field };
     if (list === undefined || list === null) return [];
-    if (!Array.isArray(list)) { warn(warnings, 'list-invalid', { field: 'ignoredStravaIds' }); return []; }
+    if (!Array.isArray(list)) { warn(warnings, 'list-invalid', { field }); return []; }
     // Linear time (a crafted backup can hold huge lists): a Set for the dedupe, and only the newest
-    // MAX_IGNORED_STRAVA entries of an oversized list are looked at.
-    const start = Math.max(0, list.length - MAX_IGNORED_STRAVA * 2);
-    if (start > 0) warn(warnings, 'ignored-ids-truncated', { count: start });
+    // 2 * max entries of an oversized list are looked at.
+    const start = Math.max(0, list.length - max * 2);
+    if (start > 0) warn(warnings, 'ignored-ids-truncated', Object.assign({ count: start }, tag));
     const seen = new Set();
     const out = [];
     for (let index = start; index < list.length; index++) {
       const item = list[index];
-      const id = cleanStravaId(item);
-      if (id === null) { warn(warnings, 'ignored-id-dropped', { index, value: cloneJson(item) === undefined ? null : cloneJson(item) }); continue; }
+      const id = clean(item);
+      if (id === null) { warn(warnings, 'ignored-id-dropped', Object.assign({ index, value: cloneJson(item) === undefined ? null : cloneJson(item) }, tag)); continue; }
       if (!seen.has(id)) { seen.add(id); out.push(id); }
     }
-    return out.length > MAX_IGNORED_STRAVA ? out.slice(out.length - MAX_IGNORED_STRAVA) : out;
+    return out.length > max ? out.slice(out.length - max) : out;
+  }
+
+  /** Deduplicated Strava activity ids the runner deleted; invalid entries reported. */
+  function normalizeIgnoredIds(list, warnings) {
+    return normalizeIdList(list, warnings, 'ignoredStravaIds', cleanStravaId, MAX_IGNORED_STRAVA);
+  }
+
+  /** Deduplicated Apple Health workout ids (upper-case UUIDs) the runner deleted; invalid entries reported. */
+  function normalizeIgnoredHealthIds(list, warnings) {
+    return normalizeIdList(list, warnings, 'ignoredHealthIds', cleanHealthId, HEALTH.maxIgnored);
   }
 
   function cleanTemplateId(value) {
@@ -752,6 +831,15 @@
     return { enabled: i.enabled === true, lastPush: isoOrNull(i.lastPush), lastError: textOrNull(i.lastError, 500) };
   }
 
+  /**
+   * Apple Health import (iOS): enabled once the runner imported (the app then imports new runs on
+   * start and when it comes back to the foreground), lastImport = when the last import finished.
+   */
+  function normalizeHealth(raw) {
+    const hh = isPlainObject(raw) ? raw : {};
+    return { enabled: hh.enabled === true, lastImport: isoOrNull(hh.lastImport), lastError: textOrNull(hh.lastError, 500) };
+  }
+
   /** ui keeps lastSeenVersion plus any other primitive per-device preferences. */
   function normalizeUi(raw) {
     const u = isPlainObject(raw) ? raw : {};
@@ -816,12 +904,14 @@
         recoveryLogs,
         legacyMilestones,
         ignoredStravaIds: orphaned.length ? normalizeIgnoredIds(ignoredList.concat(orphaned), null) : ignoredList,
+        ignoredHealthIds: normalizeIgnoredHealthIds(raw.ignoredHealthIds, warnings),
         plannedWorkouts: normalizePlanned(raw.plannedWorkouts, warnings),
         exportLog: normalizeExportLog(raw.exportLog, warnings),
         theme: raw.theme === 'light' ? 'light' : 'dark',
         language: languageOf(raw.language),
         strava,
         intervals: normalizeIntervals(raw.intervals),
+        health: normalizeHealth(raw.health),
         ui: normalizeUi(raw.ui)
       };
       return { state, warnings, fromVersion, failed: false };
@@ -1046,10 +1136,14 @@
     if (mode === 'replace') return { ok: true, mode, state: incoming, nutrition: parsed.nutrition || null, stats: null, warnings: [] };
     const base = migrate(current);
     // A Strava run deleted on either side stays deleted (the same rule as importStravaRuns), so the
-    // runs and ignoredStravaIds agree: incoming runs on the merged ignore list are skipped.
+    // runs and ignoredStravaIds agree: incoming runs on the merged ignore list are skipped. The same
+    // goes for Apple Health workouts and ignoredHealthIds.
     const ignoredSet = new Set(base.ignoredStravaIds.concat(incoming.ignoredStravaIds));
+    const ignoredHealthSet = new Set(base.ignoredHealthIds.concat(incoming.ignoredHealthIds));
     const keptHere = new Set(base.runHistory.map(run => run.stravaActivityId).filter(Boolean));
-    const incomingRuns = incoming.runHistory.filter(run => !(run.stravaActivityId && ignoredSet.has(run.stravaActivityId)));
+    const keptHealthHere = new Set(base.runHistory.map(run => run.healthId).filter(Boolean));
+    const incomingRuns = incoming.runHistory.filter(run => !(run.stravaActivityId && ignoredSet.has(run.stravaActivityId)) &&
+      !(run.healthId && ignoredHealthSet.has(run.healthId)));
     const merged = mergeRuns(base.runHistory, incomingRuns);
     const days = new Set(base.recoveryLogs.map(log => log.date));
     const recoveryLogs = base.recoveryLogs.concat(incoming.recoveryLogs.filter(log => !days.has(log.date)))
@@ -1059,13 +1153,14 @@
     const profile = base.profile.onboarded ? base.profile : incoming.profile;
     // A run this device still has wins over the backup's deletion of it (current wins, as everywhere in merge).
     const ignoredStravaIds = normalizeIgnoredIds(base.ignoredStravaIds.concat(incoming.ignoredStravaIds.filter(id => !keptHere.has(id))), null);
+    const ignoredHealthIds = normalizeIgnoredHealthIds(base.ignoredHealthIds.concat(incoming.ignoredHealthIds.filter(id => !keptHealthHere.has(id))), null);
     const plannedDates = new Set(base.plannedWorkouts.map(p => p.date));
     const plannedWorkouts = base.plannedWorkouts.concat(incoming.plannedWorkouts.filter(p => !plannedDates.has(p.date)))
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const exportKeys = new Set(base.exportLog.map(e => e.at + '\n' + e.workoutId + '\n' + e.format));
     const exportLog = normalizeExportLog(base.exportLog.concat(incoming.exportLog.filter(e => !exportKeys.has(e.at + '\n' + e.workoutId + '\n' + e.format)))
       .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)), null);
-    const state = Object.assign({}, base, { profile, runHistory: merged.runs, recoveryLogs, legacyMilestones, ignoredStravaIds, plannedWorkouts, exportLog });
+    const state = Object.assign({}, base, { profile, runHistory: merged.runs, recoveryLogs, legacyMilestones, ignoredStravaIds, ignoredHealthIds, plannedWorkouts, exportLog });
     return {
       ok: true, mode, state, nutrition: parsed.nutrition || null,
       stats: { added: merged.added, updated: merged.updated, unchanged: merged.unchanged, invalid: merged.invalid, ignored: incoming.runHistory.length - incomingRuns.length },
@@ -1187,7 +1282,7 @@
     if (!check.ok) return failure(base, check.errors, { run: null, warnings: check.warnings, duplicateOf: null });
     const runs = runsOf(base);
     const used = new Set(runs.map(run => run.id));
-    let id = typeof opts.id === 'string' && opts.id.trim() && !/^strava-/.test(opts.id.trim()) && !RESERVED_IDS.has(opts.id.trim()) && !used.has(opts.id.trim()) ? opts.id.trim() : null;
+    let id = typeof opts.id === 'string' && opts.id.trim() && !/^(strava|health)-/.test(opts.id.trim()) && !RESERVED_IDS.has(opts.id.trim()) && !used.has(opts.id.trim()) ? opts.id.trim() : null;
     if (id === null) {
       let n = Number.isFinite(opts.nowMs) ? Math.floor(opts.nowMs) : Date.now();
       while (used.has('m-' + n)) n++;
@@ -1232,11 +1327,15 @@
   function ignoredOf(state) {
     return Array.isArray(state.ignoredStravaIds) ? state.ignoredStravaIds.filter(id => typeof id === 'string') : [];
   }
+  function ignoredHealthOf(state) {
+    return Array.isArray(state.ignoredHealthIds) ? state.ignoredHealthIds.map(cleanHealthId).filter(id => id !== null) : [];
+  }
 
   /**
-   * deleteRun(state, id) -> { ok, state, run, errors, undo: { op: 'delete', run, index[, ignoredBefore] } }.
+   * deleteRun(state, id) -> { ok, state, run, errors, undo: { op: 'delete', run, index[, ignoredBefore][, ignoredHealthBefore] } }.
    * Deleting a Strava run adds its activity id to ignoredStravaIds so the next sync does not bring it
-   * back (undo restores the previous list).
+   * back; a run with an Apple Health workout id (a Health run, or a manual / Strava run that absorbed
+   * its Health copy) adds that id to ignoredHealthIds. Undo restores the previous lists.
    */
   function deleteRun(state, id) {
     const base = baseState(state);
@@ -1252,6 +1351,12 @@
     if (stravaId !== null && ignored.indexOf(stravaId) < 0) {
       patch.ignoredStravaIds = normalizeIgnoredIds(ignored.concat([stravaId]), null);
       undo.ignoredBefore = ignored;
+    }
+    const healthId = healthIdOf(run);
+    const ignoredHealth = ignoredHealthOf(base);
+    if (healthId !== null && ignoredHealth.indexOf(healthId) < 0) {
+      patch.ignoredHealthIds = normalizeIgnoredHealthIds(ignoredHealth.concat([healthId]), null);
+      undo.ignoredHealthBefore = ignoredHealth;
     }
     const next = Object.assign({}, base, patch);
     return { ok: true, state: next, run, errors: [], warnings: [], undo };
@@ -1288,6 +1393,113 @@
     return {
       ok: true, state: Object.assign({}, base, { ignoredStravaIds: keep }), removed: ignored.length - keep.length,
       errors: [], warnings: [], undo: { op: 'ignored', before: ignored }
+    };
+  }
+
+  // ---------------------------------------------------------------- Apple Health import
+
+  /**
+   * healthRunFrom(row) -> a normalized Run { id: 'health-<UUID>', source: 'health', healthId, date,
+   * startTime, type: 'run', distance, movingSeconds, effort: null, note: '', averageHeartrate,
+   * maxHeartrate?, sourceName? } from one VeyvoPlatform.health.importRuns() row, or null when the row
+   * has no valid workout id, local date, distance or duration (a treadmill run saved without a
+   * distance, for example). Heart rates outside (0, 300] bpm are left out.
+   * row: { healthId: HKWorkout UUID, startDate: ISO, date: 'YYYY-MM-DD' (local), startTime: 'HH:MM'
+   *        (local), distanceKm, movingSeconds, averageHeartrate, maxHeartrate, sourceName }
+   */
+  function healthRunFrom(row) {
+    if (!isPlainObject(row)) return null;
+    const healthId = cleanHealthId(row.healthId);
+    const date = typeof row.date === 'string' ? row.date.trim() : '';
+    if (healthId === null || !isDateKey(date)) return null;
+    const distance = roundTo(toNumber(row.distanceKm), 3);
+    if (!(distance > 0 && distance <= LIMITS.maxDistanceKm)) return null;
+    const movingSeconds = typeof row.movingSeconds === 'number' ? durationFrom(row.movingSeconds) : null;
+    if (movingSeconds === null) return null;
+    const bpm = value => {
+      const n = typeof value === 'number' ? value : NaN;
+      return n > 0 && n <= 300 ? roundTo(n, 1) : null;
+    };
+    const run = {
+      id: 'health-' + healthId, source: 'health', healthId, date, startTime: normalizeClock(row.startTime), type: 'run',
+      distance, movingSeconds, effort: null, note: '', averageHeartrate: bpm(row.averageHeartrate)
+    };
+    const max = bpm(row.maxHeartrate);
+    if (max !== null) run.maxHeartrate = max;
+    if (typeof row.sourceName === 'string' && cleanName(row.sourceName)) run.sourceName = row.sourceName;
+    return normalizeRun(run, { index: -1, warnings: null });
+  }
+
+  /**
+   * importHealthRuns(state, rows, { at }) -> { ok, state, added, updated, unchanged, invalid, ignored, twins, warnings }.
+   * rows: VeyvoPlatform.health.importRuns() answers (see healthRunFrom). Workouts on
+   * ignoredHealthIds are skipped (`ignored`); two rows that are one run (two apps wrote it into
+   * Health, isDuplicateRun) become one record (`twins`); the rest goes through mergeRuns, so a
+   * manual or Strava twin keeps its own values and only gains what Health adds (start time, heart
+   * rate, the writing app, the workout id). state.health becomes { enabled: true, lastImport: at,
+   * lastError: null }; `at` is the ISO time of the import (nothing reads the clock here).
+   */
+  function importHealthRuns(state, rows, options) {
+    const base = baseState(state);
+    const opts = isPlainObject(options) ? options : {};
+    const list = Array.isArray(rows) ? rows : [];
+    const ignored = new Set(ignoredHealthOf(base));
+    const incoming = [];
+    let invalid = 0, ignoredCount = 0, twins = 0;
+    for (const row of list) {
+      const run = healthRunFrom(row);
+      if (!run) { invalid++; continue; }
+      if (ignored.has(run.healthId)) { ignoredCount++; continue; }
+      const twin = incoming.findIndex(other => other.healthId === run.healthId || isDuplicateRun(other, run));
+      if (twin >= 0) { incoming[twin] = combineRuns(incoming[twin], run); twins++; continue; }
+      incoming.push(run);
+    }
+    const merged = mergeRuns(runsOf(base), incoming);
+    const health = Object.assign(normalizeHealth(base.health), { enabled: true, lastError: null });
+    const at = isoOrNull(opts.at);
+    if (at) health.lastImport = at;
+    const next = Object.assign({}, base, { health });
+    if (merged.added > 0 || merged.updated > 0) next.runHistory = merged.runs;
+    return {
+      ok: true, state: next, added: merged.added, updated: merged.updated, unchanged: merged.unchanged,
+      invalid: invalid + merged.invalid, ignored: ignoredCount, twins, warnings: merged.warnings
+    };
+  }
+
+  /**
+   * healthImportSince(state, now) -> ISO timestamp the next Apple Health import reads from: the
+   * first import (or a lastImport in the future) reads HEALTH.firstImportDays (90) back, later ones
+   * start HEALTH.overlapDays (7) before the last import, because watch apps often sync a run into
+   * Health hours or days after it happened (runs already imported are matched by their workout id).
+   * now: Date, epoch ms or ISO string. null when now is not a valid time.
+   */
+  function healthImportSince(state, now) {
+    const ms = now instanceof Date ? now.getTime() : typeof now === 'number' ? now : typeof now === 'string' ? Date.parse(now) : NaN;
+    if (!Number.isFinite(ms)) return null;
+    const base = baseState(state);
+    const last = isPlainObject(base.health) ? isoOrNull(base.health.lastImport) : null;
+    const lastMs = last ? Date.parse(last) : NaN;
+    const day = 86400000;
+    const from = Number.isFinite(lastMs) && lastMs <= ms ? lastMs - HEALTH.overlapDays * day : ms - HEALTH.firstImportDays * day;
+    return new Date(from).toISOString();
+  }
+
+  /**
+   * restoreIgnoredHealth(state, ids?) -> { ok, state, removed, errors, undo }. Takes the given Apple
+   * Health workout ids (or all of them) off the ignore list and resets lastImport, so the next import
+   * reads the last 90 days again and may bring those runs back.
+   */
+  function restoreIgnoredHealth(state, ids) {
+    const base = baseState(state);
+    const ignored = ignoredHealthOf(base);
+    const drop = Array.isArray(ids) ? new Set(ids.map(cleanHealthId).filter(id => id !== null)) : null;
+    const keep = drop ? ignored.filter(id => !drop.has(id)) : [];
+    const health = normalizeHealth(base.health);
+    const patch = { ignoredHealthIds: keep };
+    if (keep.length !== ignored.length) patch.health = Object.assign({}, health, { lastImport: null });
+    return {
+      ok: true, state: Object.assign({}, base, patch), removed: ignored.length - keep.length,
+      errors: [], warnings: [], undo: { op: 'ignoredHealth', before: ignored, health }
     };
   }
 
@@ -1442,8 +1654,8 @@
 
   /**
    * applyUndo(state, undo) -> { ok, state, errors }. Reverts a token from addRun, updateRun,
-   * deleteRun, upsertRecovery, deleteRecovery, setProfile, schedulePlanned, unschedulePlanned or
-   * restoreIgnoredStrava on the current state.
+   * deleteRun, upsertRecovery, deleteRecovery, setProfile, schedulePlanned, unschedulePlanned,
+   * restoreIgnoredStrava or restoreIgnoredHealth on the current state.
    */
   function applyUndo(state, undo) {
     const base = baseState(state);
@@ -1457,10 +1669,16 @@
       const others = runs.filter(r => r.id !== run.id);
       const patch = { runHistory: sortRuns(others.concat([run])) };
       if (undo.op === 'delete' && Array.isArray(undo.ignoredBefore)) patch.ignoredStravaIds = undo.ignoredBefore.slice();
+      if (undo.op === 'delete' && Array.isArray(undo.ignoredHealthBefore)) patch.ignoredHealthIds = undo.ignoredHealthBefore.slice();
       return { ok: true, state: Object.assign({}, base, patch), errors: [] };
     }
     if (undo.op === 'ignored' && Array.isArray(undo.before)) {
       return { ok: true, state: Object.assign({}, base, { ignoredStravaIds: undo.before.slice() }), errors: [] };
+    }
+    if (undo.op === 'ignoredHealth' && Array.isArray(undo.before)) {
+      const patch = { ignoredHealthIds: undo.before.slice() };
+      if (isPlainObject(undo.health)) patch.health = normalizeHealth(undo.health);
+      return { ok: true, state: Object.assign({}, base, patch), errors: [] };
     }
     if (undo.op === 'planned' && typeof undo.date === 'string') {
       const list = plannedOf(base).filter(p => p.date !== undo.date);
@@ -1553,6 +1771,8 @@
         runDeleted: 'Běh smazán.',
         runDeletedStrava: 'Běh smazán. Strava ho znovu nenačte.',
         stravaRestored: { one: '{n} smazaný běh ze Stravy se může znovu načíst.', few: '{n} smazané běhy ze Stravy se mohou znovu načíst.', many: '{n} smazaného běhu ze Stravy se může znovu načíst.', other: '{n} smazaných běhů ze Stravy se může znovu načíst.' },
+        runDeletedHealth: 'Běh smazán. Z Apple Zdraví se znovu nenačte.',
+        healthRestored: { one: '{n} smazaný běh z Apple Zdraví se může znovu načíst.', few: '{n} smazané běhy z Apple Zdraví se mohou znovu načíst.', many: '{n} smazaného běhu z Apple Zdraví se může znovu načíst.', other: '{n} smazaných běhů z Apple Zdraví se může znovu načíst.' },
         plannedSaved: 'Trénink naplánován.',
         plannedRemoved: 'Naplánovaný trénink odebrán.',
         recoverySaved: 'Regenerace uložena.',
@@ -1632,6 +1852,8 @@
         runDeleted: 'Run deleted.',
         runDeletedStrava: 'Run deleted. Strava will not import it again.',
         stravaRestored: { one: '{n} deleted Strava run can be imported again.', other: '{n} deleted Strava runs can be imported again.' },
+        runDeletedHealth: 'Run deleted. Apple Health will not import it again.',
+        healthRestored: { one: '{n} deleted Apple Health run can be imported again.', other: '{n} deleted Apple Health runs can be imported again.' },
         plannedSaved: 'Workout scheduled.',
         plannedRemoved: 'Planned workout removed.',
         recoverySaved: 'Recovery saved.',
@@ -1644,13 +1866,14 @@
 
   const api = {
     SCHEMA_VERSION, STORAGE_KEY, NUTRITION_KEY, CORRUPT_KEY_PREFIX, MIGRATION_BACKUP_PREFIX,
-    RUN_TYPES, LIMITS, DUPLICATE, MESSAGES, EXPORT_LOG_MAX,
+    RUN_TYPES, LIMITS, DUPLICATE, HEALTH, MESSAGES, EXPORT_LOG_MAX,
     DEFAULT_STATE,
     migrate, migrateWithReport, normalizeRun, typeCode, parseClockDuration, isDateKey,
     load, save,
     LEGACY_BACKUP_KEY: MIGRATION_BACKUP_PREFIX + '1',
     exportBackup, parseBackup, applyBackup, backupFileName, legacyExtras,
     mergeRuns, importStravaRuns, isDuplicateRun, stravaActivityIds, sortRuns,
+    importHealthRuns, healthRunFrom, healthImportSince, restoreIgnoredHealth,
     validateRun, addRun, updateRun, deleteRun, restoreIgnoredStrava,
     upsertRecovery, deleteRecovery, setProfile, applyUndo,
     schedulePlanned, unschedulePlanned, logExport

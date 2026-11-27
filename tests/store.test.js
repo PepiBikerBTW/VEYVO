@@ -38,12 +38,14 @@ const OWNER_V2 = {
   recoveryLogs: [{ date: '2026-11-26', sleepHours: 7.2, fatigue: 4, soreness: 2, note: '' }],
   legacyMilestones: [{ date: '2026-09-01', label: 'Intervaly 6x400' }],
   ignoredStravaIds: [],
+  ignoredHealthIds: [],
   plannedWorkouts: [],
   exportLog: [],
   theme: 'dark',
   language: 'cs',
   strava: { connected: true, lastSync: '2026-11-26T10:00:00.000Z', lastError: null },
   intervals: { enabled: false, lastPush: null, lastError: null },
+  health: { enabled: false, lastImport: null, lastError: null },
   ui: { lastSeenVersion: null }
 };
 
@@ -154,9 +156,10 @@ test('DEFAULT_STATE is the v2 schema and a fresh copy every time', () => {
   assert.deepEqual(a, {
     schemaVersion: 2,
     profile: { name: '', goalDistanceKm: 5, targetSeconds: 1200, days: [1, 6], onboarded: false },
-    runHistory: [], recoveryLogs: [], legacyMilestones: [], ignoredStravaIds: [], plannedWorkouts: [], exportLog: [], theme: 'dark', language: 'cs',
+    runHistory: [], recoveryLogs: [], legacyMilestones: [], ignoredStravaIds: [], ignoredHealthIds: [], plannedWorkouts: [], exportLog: [], theme: 'dark', language: 'cs',
     strava: { connected: false, lastSync: null, lastError: null },
     intervals: { enabled: false, lastPush: null, lastError: null },
+    health: { enabled: false, lastImport: null, lastError: null },
     ui: { lastSeenVersion: null }
   });
   a.profile.days.push(3);
@@ -1413,4 +1416,180 @@ test('pre-0.3.3 keys (chatHistory, weekReviews, ...) travel in backups from the 
   assert.equal(Store.parseBackup(Store.exportBackup(Store.DEFAULT_STATE(), null, {})).legacy, null);
   // __proto__ never becomes a key
   assert.equal(Object.getPrototypeOf(Store.legacyExtras('{"__proto__": {"x": 1}, "weekPlans": []}')), Object.prototype);
+});
+
+// ---------------------------------------------------------------- Apple Health import (iOS)
+
+const HK_A = '6F1C2D3E-4A5B-4C6D-8E7F-90A1B2C3D4E5';
+const HK_B = '11111111-2222-4333-8444-555555555555';
+const HK_C = 'AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE';
+function hkRow(over) {
+  return Object.assign({
+    healthId: HK_A, startDate: '2026-11-24T17:31:00Z', date: '2026-11-24', startTime: '18:31',
+    distanceKm: 5.0123, movingSeconds: 1262.4, averageHeartrate: 158.44, maxHeartrate: 181, sourceName: '  Cvičení  '
+  }, over || {});
+}
+
+test('healthRunFrom maps one VeyvoHealth row onto a Run and refuses rows the journal cannot hold', () => {
+  assert.deepEqual(Store.healthRunFrom(hkRow()), {
+    id: 'health-' + HK_A, source: 'health', date: '2026-11-24', startTime: '18:31', type: 'run', distance: 5.012,
+    movingSeconds: 1262, effort: null, note: '', healthId: HK_A, averageHeartrate: 158.4, maxHeartrate: 181, sourceName: 'Cvičení'
+  });
+  const lower = Store.healthRunFrom(hkRow({ healthId: HK_A.toLowerCase(), averageHeartrate: null, maxHeartrate: 400, sourceName: '' }));
+  assert.equal(lower.healthId, HK_A, 'Swift uuidString is upper case; lower case input is accepted');
+  assert.equal(lower.averageHeartrate, null);
+  assert.equal('maxHeartrate' in lower, false);
+  assert.equal('sourceName' in lower, false);
+  assert.equal(Store.healthRunFrom(hkRow({ startTime: '25:00' })).startTime, null);
+  for (const bad of [null, 'x', [], hkRow({ healthId: 'strava-1' }), hkRow({ healthId: null }), hkRow({ date: '2026-02-30' }),
+    hkRow({ date: null }), hkRow({ distanceKm: null }), hkRow({ distanceKm: 0 }), hkRow({ distanceKm: 301 }),
+    hkRow({ movingSeconds: 0 }), hkRow({ movingSeconds: '1262' }), hkRow({ movingSeconds: 172801 })]) {
+    assert.equal(Store.healthRunFrom(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('importHealthRuns: first import adds runs, the next one is a no-op, health bookkeeping is stored', () => {
+  const state = deepFreeze(Store.DEFAULT_STATE());
+  const rows = [hkRow(), hkRow({ healthId: HK_B, date: '2026-11-26', startTime: '07:05', distanceKm: 8, movingSeconds: 2900 }), hkRow({ healthId: HK_C, distanceKm: null })];
+  const first = Store.importHealthRuns(state, rows, { at: '2026-11-27T08:00:00.000Z' });
+  assert.equal(first.ok, true);
+  assert.deepEqual([first.added, first.updated, first.invalid, first.ignored], [2, 0, 1, 0]);
+  assert.deepEqual(first.state.runHistory.map(r => r.id), ['health-' + HK_A, 'health-' + HK_B]);
+  assert.deepEqual(first.state.health, { enabled: true, lastImport: '2026-11-27T08:00:00.000Z', lastError: null });
+  assert.deepEqual(Store.migrate(first.state), first.state, 'the imported state is already canonical');
+
+  const again = Store.importHealthRuns(first.state, rows, { at: '2026-11-27T09:00:00.000Z' });
+  assert.deepEqual([again.added, again.updated, again.unchanged], [0, 0, 2]);
+  assert.equal(again.state.runHistory, first.state.runHistory, 'runs untouched when nothing changed');
+  assert.equal(again.state.health.lastImport, '2026-11-27T09:00:00.000Z');
+  const noAt = Store.importHealthRuns(first.state, [], {});
+  assert.equal(noAt.state.health.lastImport, '2026-11-27T08:00:00.000Z', 'no clock inside: a missing at keeps lastImport');
+  assert.deepEqual(Store.importHealthRuns(state, 'junk').state.runHistory, []);
+});
+
+test('importHealthRuns: a manual twin keeps the typed time and gains start time, heart rate and the workout id', () => {
+  const state = Store.migrate({ schemaVersion: 2, runHistory: [{ id: 'm-1', source: 'manual', date: '2026-11-24', type: 'test5k', distance: 5, movingSeconds: 1250, effort: 9, note: 'PB' }] });
+  const r = Store.importHealthRuns(state, [hkRow()], { at: '2026-11-27T08:00:00.000Z' });
+  assert.deepEqual([r.added, r.updated], [0, 1]);
+  assert.deepEqual(r.state.runHistory, [{
+    id: 'm-1', source: 'manual', date: '2026-11-24', startTime: '18:31', type: 'test5k', distance: 5, movingSeconds: 1250, effort: 9, note: 'PB',
+    healthId: HK_A, averageHeartrate: 158.4, maxHeartrate: 181, sourceName: 'Cvičení'
+  }]);
+  const again = Store.importHealthRuns(r.state, [hkRow()], { at: '2026-11-28T08:00:00.000Z' });
+  assert.deepEqual([again.added, again.updated, again.unchanged], [0, 0, 1], 'matched by the workout id from then on');
+
+  // A Strava run of the same activity keeps its id and Strava fields, the Health copy only fills blanks.
+  const strava = Store.migrate({ schemaVersion: 2, runHistory: [{ id: 'strava-77', source: 'strava', stravaActivityId: '77', date: '2026-11-24', startTime: '18:30', distance: 5.01, movingSeconds: 1270, name: 'Evening Run', averageHeartrate: 157 }] });
+  const s = Store.importHealthRuns(strava, [hkRow()], { at: '2026-11-27T08:00:00.000Z' });
+  assert.equal(s.updated, 1);
+  assert.equal(s.state.runHistory.length, 1);
+  assert.equal(s.state.runHistory[0].id, 'strava-77');
+  assert.equal(s.state.runHistory[0].startTime, '18:30');
+  assert.equal(s.state.runHistory[0].averageHeartrate, 157);
+  assert.equal(s.state.runHistory[0].healthId, HK_A);
+});
+
+test('importHealthRuns: two apps writing one run give one record; two runs on one day stay two', () => {
+  const twin = hkRow({ healthId: HK_B, startTime: '18:35', distanceKm: 5.05, movingSeconds: 1280, averageHeartrate: null, maxHeartrate: null, sourceName: 'Garmin Connect' });
+  const r = Store.importHealthRuns(Store.DEFAULT_STATE(), [hkRow({ averageHeartrate: null }), twin], { at: '2026-11-27T08:00:00.000Z' });
+  assert.deepEqual([r.added, r.twins], [1, 1]);
+  assert.equal(r.state.runHistory[0].healthId, HK_A);
+  const later = hkRow({ healthId: HK_B, startTime: '20:40' });
+  const two = Store.importHealthRuns(Store.DEFAULT_STATE(), [hkRow(), later], { at: '2026-11-27T08:00:00.000Z' });
+  assert.equal(two.added, 2, 'starts 2 h apart: two runs');
+  const far = hkRow({ healthId: HK_B, startTime: '18:45' });
+  assert.equal(Store.importHealthRuns(Store.DEFAULT_STATE(), [hkRow(), far], {}).added, 2, 'two Health workouts more than 10 min apart are not twins');
+  assert.equal(Store.isDuplicateRun(Store.healthRunFrom(hkRow()), Store.healthRunFrom(far)), false);
+  assert.equal(Store.isDuplicateRun(Store.healthRunFrom(hkRow()), Store.healthRunFrom(twin)), true);
+});
+
+test('deleting a Health run keeps it deleted; undo and restoreIgnoredHealth bring it back', () => {
+  const imported = Store.importHealthRuns(Store.DEFAULT_STATE(), [hkRow()], { at: '2026-11-27T08:00:00.000Z' }).state;
+  const del = Store.deleteRun(imported, 'health-' + HK_A);
+  assert.equal(del.ok, true);
+  assert.deepEqual(del.state.ignoredHealthIds, [HK_A]);
+  assert.deepEqual(del.undo.ignoredHealthBefore, []);
+  assert.equal(del.undo.ignoredBefore, undefined, 'no Strava id, no Strava bookkeeping');
+  const re = Store.importHealthRuns(del.state, [hkRow()], { at: '2026-11-28T08:00:00.000Z' });
+  assert.deepEqual([re.added, re.ignored], [0, 1]);
+  assert.deepEqual(re.state.runHistory, []);
+
+  const undone = Store.applyUndo(del.state, del.undo);
+  assert.deepEqual(undone.state.ignoredHealthIds, []);
+  assert.equal(undone.state.runHistory.length, 1);
+
+  // a manual run that absorbed its Health copy is also never re-imported after a delete
+  const manual = Store.migrate({ schemaVersion: 2, runHistory: [{ id: 'm-1', source: 'manual', date: '2026-11-24', distance: 5, movingSeconds: 1250, healthId: HK_A.toLowerCase() }] });
+  assert.deepEqual(Store.deleteRun(manual, 'm-1').state.ignoredHealthIds, [HK_A]);
+
+  const restored = Store.restoreIgnoredHealth(del.state);
+  assert.equal(restored.removed, 1);
+  assert.deepEqual(restored.state.ignoredHealthIds, []);
+  assert.equal(restored.state.health.lastImport, null, 'the next import reads 90 days again');
+  const back = Store.applyUndo(restored.state, restored.undo);
+  assert.deepEqual(back.state.ignoredHealthIds, [HK_A]);
+  assert.equal(back.state.health.lastImport, '2026-11-27T08:00:00.000Z');
+  assert.equal(Store.restoreIgnoredHealth(del.state, ['not-a-uuid']).removed, 0);
+  assert.equal(Store.restoreIgnoredHealth(del.state, ['not-a-uuid']).state.health.lastImport, '2026-11-27T08:00:00.000Z');
+});
+
+test('healthImportSince: 90 days on the first import, then from 7 days before the last import', () => {
+  const now = Date.parse('2026-11-27T08:00:00.000Z');
+  assert.equal(Store.healthImportSince(Store.DEFAULT_STATE(), now), '2026-08-29T08:00:00.000Z');
+  assert.equal(Store.healthImportSince(Store.DEFAULT_STATE(), new Date(now)), '2026-08-29T08:00:00.000Z');
+  const state = Object.assign(Store.DEFAULT_STATE(), { health: { enabled: true, lastImport: '2026-11-25T06:00:00.000Z', lastError: null } });
+  assert.equal(Store.healthImportSince(state, '2026-11-27T08:00:00.000Z'), '2026-11-18T06:00:00.000Z');
+  const old = Object.assign(Store.DEFAULT_STATE(), { health: { enabled: true, lastImport: '2026-01-10T06:00:00.000Z', lastError: null } });
+  assert.equal(Store.healthImportSince(old, now), '2026-01-03T06:00:00.000Z', 'a long break is not cut to 90 days');
+  const future = Object.assign(Store.DEFAULT_STATE(), { health: { enabled: true, lastImport: '2027-01-01T00:00:00.000Z', lastError: null } });
+  assert.equal(Store.healthImportSince(future, now), '2026-08-29T08:00:00.000Z', 'a clock that jumped back reads 90 days');
+  assert.equal(Store.healthImportSince(Store.DEFAULT_STATE(), 'soon'), null);
+  assert.equal(Store.healthImportSince(Store.DEFAULT_STATE()), null);
+});
+
+test('migration keeps Health data canonical: ids, ignore list, bookkeeping; broken ids are reported', () => {
+  const report = Store.migrateWithReport({
+    schemaVersion: 2,
+    runHistory: [
+      { id: 'health-' + HK_A.toLowerCase(), source: 'health', date: '2026-11-24', distance: 5, movingSeconds: 1262, maxHeartrate: '181' },
+      { id: 'health-x', source: 'health', date: '2026-11-25', distance: 5, movingSeconds: 1262 },
+      { id: 'm-2', source: 'manual', date: '2026-11-26', distance: 5, movingSeconds: 1262, healthId: 'nope' }
+    ],
+    ignoredHealthIds: [HK_B, HK_B.toLowerCase(), 'x', 7],
+    health: { enabled: true, lastImport: 'yesterday', lastError: 'denied' }
+  });
+  const runs = report.state.runHistory;
+  assert.equal(runs[0].id, 'health-' + HK_A);
+  assert.equal(runs[0].healthId, HK_A);
+  assert.equal(runs[0].maxHeartrate, 181);
+  assert.equal(runs[0].averageHeartrate, null);
+  assert.equal(runs[1].source, 'manual', 'a Health run without a valid workout id becomes a manual run');
+  assert.equal(runs[1].id, 'health-x');
+  assert.equal('healthId' in runs[2], false);
+  assert.deepEqual(report.state.ignoredHealthIds, [HK_B]);
+  assert.deepEqual(report.state.health, { enabled: true, lastImport: null, lastError: 'denied' });
+  assert.equal(count(report.warnings, 'ignored-id-dropped'), 2);
+  assert.ok(report.warnings.filter(w => w.code === 'ignored-id-dropped').every(w => w.field === 'ignoredHealthIds'));
+  assert.equal(report.warnings.filter(w => w.code === 'run-field-invalid' && w.field === 'healthId').length, 2);
+  assert.deepEqual(Store.migrate(report.state), report.state);
+  assert.deepEqual(Store.migrate({ ignoredHealthIds: 'x' }).ignoredHealthIds, []);
+  const big = Store.migrateWithReport({ ignoredHealthIds: new Array(12000).fill(HK_C) });
+  assert.deepEqual(big.state.ignoredHealthIds, [HK_C]);
+  assert.equal(count(big.warnings, 'ignored-ids-truncated'), 1);
+});
+
+test('backup merge: a Health run deleted on either side stays deleted, Health bookkeeping stays local', () => {
+  const imported = Store.importHealthRuns(Store.DEFAULT_STATE(), [hkRow(), hkRow({ healthId: HK_B, date: '2026-11-26' })], { at: '2026-11-27T08:00:00.000Z' }).state;
+  const deletedHere = Store.deleteRun(imported, 'health-' + HK_B).state;
+  const parsed = Store.parseBackup(Store.exportBackup(imported, null, { appVersion: '0.4.1', exportedAt: '2026-11-27T09:00:00.000Z' }));
+  const merged = Store.applyBackup(deletedHere, parsed, { mode: 'merge' });
+  assert.deepEqual(merged.state.runHistory.map(r => r.id), ['health-' + HK_A]);
+  assert.deepEqual(merged.state.ignoredHealthIds, [HK_B]);
+  assert.equal(merged.stats.ignored, 1);
+
+  const fresh = Store.DEFAULT_STATE();
+  const fromDeleted = Store.applyBackup(fresh, Store.parseBackup(Store.exportBackup(deletedHere, null, {})), { mode: 'merge' });
+  assert.deepEqual(fromDeleted.state.ignoredHealthIds, [HK_B], 'the deletion travels with the backup');
+  assert.deepEqual(fromDeleted.state.health, fresh.health, 'connections stay as they are on this device');
+  assert.equal(Store.addRun(fresh, { date: '2026-11-20', distance: 5, time: '25:00' }, { today: '2026-11-27', id: 'health-' + HK_A, nowMs: 5 }).run.id, 'm-5', 'addRun never makes a health- id');
 });

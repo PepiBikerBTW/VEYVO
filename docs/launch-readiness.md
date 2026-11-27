@@ -5,7 +5,7 @@ The user clarified that no custom domain is required and requested the Windows a
 - Keep the existing VEYVO application icon and favicon.
 - Run unit and Electron UI tests before publishing.
 - Publish the installer, portable build and updater metadata together.
-- Privacy policy and terms remain pending for a future public website; do not claim they are complete.
+- The privacy policy and support page (cs + en, publisher Josef Kožíšek, effective 1. 12. 2026) are written in `site/` and go live on GitHub Pages (`.github/workflows/pages.yml`, https://pepibikerbtw.github.io/VEYVO/) once the owner enables Pages; until then do not claim they are published. Terms of use remain pending.
 
 Design rules: no purple gradients, pill buttons, invented metrics or reviews, emoji icons, generated photos, marketing filler, or cursor effects. Nutrition guidance is source-based educational content requested by the user.
 

@@ -17,6 +17,8 @@ VEYVO is a running journal for Windows and Android, in Czech and English. Log ea
 - `npm run test:ui` runs the Electron UI tests.
 - `npm start` starts the Windows app; `npm run build` creates the Windows installer and portable app.
 - Android: `cd mobile && npm ci && npm run build:debug` builds a debug APK (Java 21 and the Android SDK required). Release signing reads `VEYVO_KEYSTORE_PATH`, `VEYVO_KEYSTORE_PASSWORD`, `VEYVO_KEY_ALIAS` and `VEYVO_KEY_PASSWORD` from the environment.
+  - `npm run build:github:apk` builds the GitHub APK (`github` channel, with the GitHub self-updater).
+  - `npm run build:play:aab` builds the Google Play bundle (`play` channel: no self-updater, no GitHub calls, no Strava) at `mobile/android/app/build/outputs/bundle/release/app-release.aab`. A repeat Play upload of the same version needs `VEYVO_BUILD_NUMBER=1`, `2`, … (versionCode = major·1000000 + minor·10000 + patch·100 + build). See [build channels](docs/architecture.md#build-channels).
 
 Architecture: [docs/architecture.md](docs/architecture.md) and [docs/ui-architecture.md](docs/ui-architecture.md).
 

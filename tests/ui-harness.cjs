@@ -1,4 +1,4 @@
-// Shared harness for the Electron UI tests (tests/ui-app.cjs, ui-flows.cjs, ui-nutrition.cjs).
+// Shared harness for the Electron UI tests (tests/ui-app.cjs, ui-flows.cjs, ui-nutrition.cjs, ui-ios.cjs).
 // Not a node --test file: each UI test is an Electron main script, run by `npm run test:ui`
 // (Windows CI, the repo's Electron) or by hand with any Electron >= 38:
 //
@@ -160,7 +160,8 @@ const PAGE_HELPERS = `(() => {
 
 // ---------------------------------------------------------------- the harness
 /**
- * run(name, async t => { ... }, { width, height, seed, today, platform }) boots one window, runs the
+ * run(name, async t => { ... }, { width, height, seed, today, platform, preload, args, sandbox, index })
+ * boots one window, runs the
  * test body, prints a summary and exits (0 = all checks passed). t:
  *   t.js(expr), t.exec(body)   await a page expression / run an async function body in the page
  *   t.seed(storage)            replace localStorage ({ key: value | object }) and reload
@@ -168,6 +169,9 @@ const PAGE_HELPERS = `(() => {
  *   t.ok(cond, label), t.equal(a, b, label), t.match(str, re, label)
  *   t.ipc                      recorded calls + overrides (see above)
  *   t.errors                   console errors/warnings and crashes seen so far
+ * preload / args / sandbox / index replace the real electron/preload.js, add process arguments for it,
+ * switch the renderer sandbox and load another index.html (tests/ui-ios.cjs: the fake iPhone shell of
+ * tests/visual/stub-preload.cjs on the App Store copy written by mobile/scripts/sync-web.mjs).
  */
 function run(name, body, options) {
   const o = Object.assign({ width: 1480, height: 940, today: TODAY }, options || {});
@@ -204,7 +208,7 @@ function run(name, body, options) {
     async load(hash) {
       // A load that only changes the #hash would be a same-document navigation (no restart): leave first.
       await t.win.loadURL('about:blank');
-      await t.win.loadFile(INDEX, { hash: hash || 'home', query: { today: o.today } }).catch(() => { /* the app rewrites the hash while booting */ });
+      await t.win.loadFile(o.index || INDEX, { hash: hash || 'home', query: { today: o.today } }).catch(() => { /* the app rewrites the hash while booting */ });
       await t.ready();
     },
     async reload() {
@@ -252,8 +256,9 @@ function run(name, body, options) {
       t.win = new BrowserWindow({
         show: false, width: o.width, height: o.height, useContentSize: true, backgroundColor: '#0D0E11',
         webPreferences: {
-          preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: true,
-          backgroundThrottling: false, spellcheck: false, partition: 'veyvo-ui-test-' + process.pid
+          preload: o.preload || PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: o.sandbox !== false,
+          backgroundThrottling: false, spellcheck: false, partition: 'veyvo-ui-test-' + process.pid,
+          additionalArguments: Array.isArray(o.args) ? o.args : []
         }
       });
       // Headless Linux starts every window on a 1x1 display: size it after creation. The window must

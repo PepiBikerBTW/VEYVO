@@ -20,9 +20,16 @@
  *   Vzhled a jazyk   theme + language (app.setTheme / app.setLanguage: live and persisted).
  *   Propojení        Strava (desktop): status incl. lastError and "Vyžaduje nové přihlášení",
  *                    connect form (Client ID 275720, Client Secret, consent), sync now, disconnect,
- *                    re-allow deleted runs. Android/web: "Strava zatím jen ve Windows verzi".
+ *                    re-allow deleted runs. Android/web: "Strava zatím jen ve Windows verzi"; a store
+ *                    build (app.build.store, Google Play) shows no Strava at all.
  *                    intervals.icu: API key (VeyvoPlatform.secrets 'intervals-api-key', the same
  *                    name ui/workout-sheet.js uses), verified with GET /api/v1/athlete/0.
+ *                    iPhone (platform kind 'ios'): Apple Zdraví instead of Strava. "Importovat běhy"
+ *                    asks for read access (VeyvoPlatform.health), reads the last 90 days, then only
+ *                    what is new (VeyvoStore.healthImportSince / importHealthRuns: deduplicated by the
+ *                    Health workout id and the duplicate rules, the typed time wins, deleted runs stay
+ *                    deleted). After the first import new runs come in on their own when the app
+ *                    starts or returns to the foreground (importHealth, at most every 15 minutes).
  *   Data             counts, export (VeyvoStore.exportBackup + VeyvoPlatform.saveFile), import
  *                    (parseBackup -> preview -> merge / replace with confirm), automatic daily
  *                    backups (VeyvoPlatform.backup.list/read) with restore, and the danger zone
@@ -30,7 +37,10 @@
  *                    button; clears ignoredStravaIds + lastSync so Strava can import again).
  *                    Replace and wipe first write a safety snapshot into today's automatic backup.
  *   Aktualizace      desktop updater states with progress; Android GitHub release + APK link.
- *   O aplikaci       version, privacy, licences (fonts OFL, workoutkit MIT, shell MIT), shortcuts.
+ *                    Not shown in a store build (Google Play installs updates): sectionsFor(app.build).
+ *   O aplikaci       version, health notice ("not a medical device", consult a professional - both
+ *                    stores require it), privacy + the privacy policy link (PRIVACY_URL, opened with
+ *                    VeyvoPlatform.openExternal), licences (fonts OFL, workoutkit MIT, shell MIT), shortcuts.
  *
  * Texts: i18n namespace 'settings' (cs + en). CSS: styles/pages/settings.css (prefix set-).
  * Pure helpers for tests and ui/onboarding.js: VeyvoUI.settings.
@@ -57,9 +67,11 @@
         profile: 'Jméno, cíl a dny, kdy můžeš běhat. Podle nich VEYVO plánuje další běh a ukazuje, kolik ti do cíle chybí.',
         appearance: 'Motiv i jazyk se změní hned a zůstanou uložené.',
         connections: 'Obě služby jsou volitelné. Bez nich VEYVO funguje celé offline.',
+        connectionsStore: 'Propojení s intervals.icu je volitelné. Bez něj VEYVO funguje celé offline.',
+        connectionsIos: 'Apple Zdraví i intervals.icu jsou volitelné. Bez nich VEYVO funguje celé offline.',
         data: 'Všechno je uložené jen v tomto zařízení. Zálohu si stáhneš do souboru a obnovíš ji tady.',
         updates: 'Nové verze VEYVO a jejich instalace.',
-        about: 'Verze, soukromí a licence.'
+        about: 'Verze, soukromí, zdravotní upozornění a licence.'
       },
       dot: { attention: 'vyžaduje pozornost', unsaved: 'neuložené změny', update: 'je dostupná aktualizace' },
       when: { today: 'dnes {time}', yesterday: 'včera {time}', date: '{date} {time}' },
@@ -155,6 +167,30 @@
           consentMissing: 'Potvrď, že VEYVO smí načítat tvoje aktivity.'
         }
       },
+      health: {
+        title: 'Apple Zdraví',
+        sub: 'Automatické načítání běhů',
+        status: { off: 'Vypnuto', on: 'Zapnuto', importing: 'Načítám…', error: 'Chyba načítání' },
+        lead: 'VEYVO načte z aplikace Zdraví tvoje běhy: datum a čas startu, vzdálenost, čas a průměrný i nejvyšší tep. Do Zdraví je zapisují Apple Watch i aplikace jiných hodinek.',
+        lastImport: 'Poslední načtení',
+        never: 'zatím nikdy',
+        import: 'Importovat běhy',
+        importAgain: 'Načíst nové běhy',
+        stop: 'Vypnout automatické načítání',
+        stopped: 'Automatické načítání z Apple Zdraví je vypnuté. Načtené běhy zůstávají.',
+        auto: 'Nové běhy se načítají samy, když VEYVO otevřeš.',
+        imported: { one: 'Z Apple Zdraví přibyl {n} běh.', few: 'Z Apple Zdraví přibyly {n} běhy.', many: 'Z Apple Zdraví přibylo {n} běhu.', other: 'Z Apple Zdraví přibylo {n} běhů.' },
+        updated: { one: '{n} běh doplněn o údaje z Apple Zdraví.', few: '{n} běhy doplněny o údaje z Apple Zdraví.', many: '{n} běhu doplněno o údaje z Apple Zdraví.', other: '{n} běhů doplněno o údaje z Apple Zdraví.' },
+        upToDate: 'Žádné nové běhy, všechno už je načtené.',
+        none: 'V Apple Zdraví VEYVO žádné běhy nenašlo. Pokud tam nějaké máš, zkontroluj, že má VEYVO povolené čtení tréninků.',
+        skipped: { one: '{n} běh bez vzdálenosti se nenačetl.', few: '{n} běhy bez vzdálenosti se nenačetly.', many: '{n} běhu bez vzdálenosti se nenačetlo.', other: '{n} běhů bez vzdálenosti se nenačetlo.' },
+        errorTitle: 'Poslední načtení selhalo.',
+        ignored: { one: '{n} smazaný běh z Apple Zdraví se znovu nenačítá.', few: '{n} smazané běhy z Apple Zdraví se znovu nenačítají.', many: '{n} smazaného běhu z Apple Zdraví se znovu nenačítá.', other: '{n} smazaných běhů z Apple Zdraví se znovu nenačítá.' },
+        restoreIgnored: 'Povolit znovu načíst',
+        reads: 'VEYVO ze Zdraví jen čte běžecké tréninky, vzdálenost a tep. Nic do něj nezapisuje a data neposílá mimo tento iPhone.',
+        rules: 'První import načte posledních 90 dní, další už jen nové běhy. Když běh zapíšeš i ručně, platí tvůj čas a vzdálenost.',
+        permission: 'Přístup VEYVO k datům změníš v aplikaci Zdraví v nastavení svého profilu, v seznamu aplikací.'
+      },
       intervals: {
         title: 'intervals.icu',
         sub: 'Odesílání tréninků',
@@ -183,6 +219,7 @@
         lastError: 'Poslední odeslání selhalo: {message}',
         storeEncrypted: 'Klíč šifruje Windows a zůstává jen v tomto počítači.',
         storePlain: 'Na Androidu se klíč ukládá do soukromého úložiště aplikace, ale není šifrovaný.',
+        storePlainIos: 'V iPhonu se klíč ukládá do soukromého úložiště aplikace, ale není šifrovaný.',
         storeMemory: 'V této verzi se klíč drží jen do zavření aplikace.',
         storeNone: 'Tahle verze neumí klíč bezpečně uložit.'
       },
@@ -301,11 +338,18 @@
       about: {
         tagline: 'Běžecký deník',
         version: 'verze {version}',
-        platform: { desktop: 'Windows', android: 'Android', web: 'Web' },
+        platform: { desktop: 'Windows', android: 'Android', ios: 'iPhone', web: 'Web' },
         privacyTitle: 'Tvoje data',
         privacySub: 'Bez účtu a bez cloudu',
         privacy: 'VEYVO nemá účet ani cloud. Běhy, regenerace, plán i profil zůstávají v tomto zařízení.',
         privacyOut: 'Ven odcházejí data jen přes volitelné propojení: Strava (načítání tvých běhů) a intervals.icu (odesílání tréninků). Kontrola aktualizací se GitHubu ptá jen na číslo nejnovější verze.',
+        privacyOutStore: 'Ven odcházejí data jen přes volitelné propojení s intervals.icu, když do něj pošleš trénink.',
+        privacyHealth: 'Běhy z Apple Zdraví VEYVO jen čte a ukládá v tomto iPhonu. Nikam je neposílá a do Zdraví nic nezapisuje.',
+        privacyPolicy: 'Zásady ochrany osobních údajů',
+        healthTitle: 'Zdravotní upozornění',
+        healthSub: 'Obecné rady, ne lékařská péče',
+        medical: 'VEYVO není zdravotnický prostředek a neslouží k diagnóze, léčbě, vyléčení ani prevenci žádného onemocnění. Rady k tréninku, regeneraci a jídlu jsou obecné.',
+        medicalConsult: 'Před náročnějším tréninkem nebo při zdravotních potížích se poraď s lékařem.',
         licences: 'Licence',
         licencesSub: 'Software třetích stran v aplikaci',
         inter: 'písmo pro texty · © 2016 The Inter Project Authors',
@@ -313,6 +357,7 @@
         workoutkit: 'export tréninků pro Apple Watch · © 2026 Bartosz Legięć',
         electron: 'aplikace pro Windows · © OpenJS Foundation a přispěvatelé',
         capacitor: 'aplikace pro Android · © Ionic',
+        capacitorIos: 'aplikace pro iPhone · © Ionic',
         shortcuts: 'Klávesové zkratky',
         shortcutLog: 'Zapsat běh',
         shortcutClose: 'Zavřít okno nebo dialog',
@@ -330,9 +375,11 @@
         profile: 'Your name, goal and the days you can run. VEYVO plans your next run from them and shows how far you are from your goal.',
         appearance: 'Theme and language change right away and stay saved.',
         connections: 'Both services are optional. Without them VEYVO works fully offline.',
+        connectionsStore: 'The intervals.icu link is optional. Without it VEYVO works fully offline.',
+        connectionsIos: 'Apple Health and intervals.icu are both optional. Without them VEYVO works fully offline.',
         data: 'Everything is stored on this device only. Download a backup to a file and restore it here.',
         updates: 'New VEYVO versions and how to install them.',
-        about: 'Version, privacy and licences.'
+        about: 'Version, privacy, health notice and licences.'
       },
       dot: { attention: 'needs attention', unsaved: 'unsaved changes', update: 'an update is available' },
       when: { today: 'today {time}', yesterday: 'yesterday {time}', date: '{date}, {time}' },
@@ -428,6 +475,30 @@
           consentMissing: 'Confirm that VEYVO may read your activities.'
         }
       },
+      health: {
+        title: 'Apple Health',
+        sub: 'Automatic run import',
+        status: { off: 'Off', on: 'On', importing: 'Importing…', error: 'Import failed' },
+        lead: 'VEYVO reads your runs from the Health app: date and start time, distance, time, and average and maximum heart rate. Apple Watch and the apps of other watches write them there.',
+        lastImport: 'Last import',
+        never: 'not yet',
+        import: 'Import runs',
+        importAgain: 'Import new runs',
+        stop: 'Turn off automatic import',
+        stopped: 'Automatic import from Apple Health is off. Imported runs stay.',
+        auto: 'New runs are imported on their own when you open VEYVO.',
+        imported: { one: '{n} run added from Apple Health.', other: '{n} runs added from Apple Health.' },
+        updated: { one: '{n} run completed with Apple Health data.', other: '{n} runs completed with Apple Health data.' },
+        upToDate: 'No new runs, everything is imported already.',
+        none: 'VEYVO found no runs in Apple Health. If you have some there, check that VEYVO may read workouts.',
+        skipped: { one: '{n} run without a distance was not imported.', other: '{n} runs without a distance were not imported.' },
+        errorTitle: 'The last import failed.',
+        ignored: { one: '{n} deleted Apple Health run is not imported again.', other: '{n} deleted Apple Health runs are not imported again.' },
+        restoreIgnored: 'Allow importing again',
+        reads: 'VEYVO only reads running workouts, distance and heart rate from Health. It writes nothing to Health and sends no data off this iPhone.',
+        rules: 'The first import reads the last 90 days, later ones only new runs. When you also log a run by hand, your time and distance win.',
+        permission: 'You can change what VEYVO may read in the Health app, in your profile settings, in the list of apps.'
+      },
       intervals: {
         title: 'intervals.icu',
         sub: 'Sending workouts',
@@ -456,6 +527,7 @@
         lastError: 'The last send failed: {message}',
         storeEncrypted: 'Windows encrypts the key and it stays on this computer only.',
         storePlain: 'On Android the key is kept in the app’s private storage, but it is not encrypted.',
+        storePlainIos: 'On iPhone the key is kept in the app’s private storage, but it is not encrypted.',
         storeMemory: 'In this version the key is kept only until the app closes.',
         storeNone: 'This version cannot store the key safely.'
       },
@@ -574,11 +646,18 @@
       about: {
         tagline: 'Running journal',
         version: 'version {version}',
-        platform: { desktop: 'Windows', android: 'Android', web: 'Web' },
+        platform: { desktop: 'Windows', android: 'Android', ios: 'iPhone', web: 'Web' },
         privacyTitle: 'Your data',
         privacySub: 'No account, no cloud',
         privacy: 'VEYVO has no account and no cloud. Your runs, recovery, plan and profile stay on this device.',
         privacyOut: 'Data leaves the device only through the optional links: Strava (importing your runs) and intervals.icu (sending workouts). The update check only asks GitHub for the latest version number.',
+        privacyOutStore: 'Data leaves the device only through the optional intervals.icu link, when you send a workout there.',
+        privacyHealth: 'VEYVO only reads runs from Apple Health and keeps them on this iPhone. It sends them nowhere and writes nothing to Health.',
+        privacyPolicy: 'Privacy policy',
+        healthTitle: 'Health notice',
+        healthSub: 'General guidance, not medical care',
+        medical: 'VEYVO is not a medical device and does not diagnose, treat, cure or prevent any medical condition. Its training, recovery and nutrition tips are general guidance.',
+        medicalConsult: 'Talk to a doctor or another healthcare professional before harder training or if you have health concerns.',
         licences: 'Licences',
         licencesSub: 'Third-party software in the app',
         inter: 'text typeface · © 2016 The Inter Project Authors',
@@ -586,6 +665,7 @@
         workoutkit: 'Apple Watch workout export · © 2026 Bartosz Legięć',
         electron: 'Windows app · © OpenJS Foundation and contributors',
         capacitor: 'Android app · © Ionic',
+        capacitorIos: 'iPhone app · © Ionic',
         shortcuts: 'Keyboard shortcuts',
         shortcutLog: 'Log a run',
         shortcutClose: 'Close a window or dialog',
@@ -598,6 +678,8 @@
 
   // ================================================================ constants
   const SECTIONS = Object.freeze(['profile', 'appearance', 'connections', 'data', 'updates', 'about']);
+  // A store build (Google Play) has no Aktualizace: Google Play installs updates, the version is in O aplikaci.
+  const STORE_SECTIONS = Object.freeze(SECTIONS.filter(s => s !== 'updates'));
   const SECTION_ICON = Object.freeze({ profile: 'user', appearance: 'sun', connections: 'link', data: 'database', updates: 'download', about: 'info' });
   const SECTION_ALIASES = Object.freeze({
     strava: 'connections', intervals: 'connections', connection: 'connections', language: 'appearance', theme: 'appearance',
@@ -609,6 +691,8 @@
   const INTERVALS_SITE = 'https://intervals.icu/settings';
   const INTERVALS_SECRET = 'intervals-api-key';            // same name as ui/workout-sheet.js
   const INTERVALS_ATHLETE_URL = 'https://intervals.icu/api/v1/athlete/0';
+  // Public privacy policy (GitHub Pages, cs + en), opened in the system browser via VeyvoPlatform.openExternal.
+  const PRIVACY_URL = 'https://pepibikerbtw.github.io/VEYVO/privacy/';
   const BACKUP_ROWS = 5;
   const NAME_MAX = (Store.LIMITS && Store.LIMITS.maxProfileName) || 40;
   const MIN_PACE = 120;                                   // s/km: faster than 2:00/km is a typo
@@ -618,11 +702,40 @@
   const isNum = v => typeof v === 'number' && Number.isFinite(v);
   const pad2 = n => String(n).padStart(2, '0');
 
-  /** 'strava' -> 'connections'; unknown -> 'profile'. */
-  function sectionOf(name) {
+  /** The sections a build shows ({ store } from app.build): a store build has no 'updates'. */
+  function sectionsFor(build) { return build && build.store ? STORE_SECTIONS : SECTIONS; }
+
+  /**
+   * The Propojení groups of a build and platform kind: a store build has no Strava at all (not even
+   * a "Windows only" note); the iPhone app has Apple Zdraví instead (and never names other platforms).
+   */
+  function connectionsFor(build, kind) {
+    if (kind === 'ios') return ['health', 'intervals'];
+    return build && build.store ? ['intervals'] : ['strava', 'intervals'];
+  }
+
+  /** Apple Zdraví card state: 'importing' | 'error' | 'on' | 'off' from state.health and the busy flag. */
+  function healthKey(health, busy) {
+    if (busy) return 'importing';
+    const st = health || {};
+    if (st.lastError) return 'error';
+    return st.enabled ? 'on' : 'off';
+  }
+
+  /** Toast text for a finished import: { key, n } of 'health.imported' | 'health.updated' | 'health.upToDate' | 'health.none', or null (automatic import, nothing new). */
+  function healthToast(result, rows, manual) {
+    if (result.added > 0) return { key: 'health.imported', n: result.added };
+    if (!manual) return null;
+    if (result.updated > 0) return { key: 'health.updated', n: result.updated };
+    return { key: rows > 0 ? 'health.upToDate' : 'health.none', n: rows };
+  }
+
+  /** 'strava' -> 'connections'; unknown -> 'profile'; a section the build does not show ('updates' in a store build) -> 'about'. */
+  function sectionOf(name, sections) {
+    const list = Array.isArray(sections) ? sections : SECTIONS;
     const s = String(name || '');
-    if (SECTIONS.indexOf(s) >= 0) return s;
-    return SECTION_ALIASES[s] || 'profile';
+    const found = SECTIONS.indexOf(s) >= 0 ? s : (SECTION_ALIASES[s] || 'profile');
+    return list.indexOf(found) >= 0 ? found : 'about';
   }
 
   /**
@@ -741,7 +854,8 @@
   /**
    * "Smazat všechna data": a fresh v2 state that keeps only device preferences (theme, language,
    * ui) and the connection flags. ignoredStravaIds and strava.lastSync are cleared, so a connected
-   * Strava can import the runs again (0.3 bug: deleted runs never came back).
+   * Strava can import the runs again (0.3 bug: deleted runs never came back); ignoredHealthIds and
+   * health.lastImport likewise for Apple Health.
    */
   function wipeState(prev) {
     const p = prev || {};
@@ -750,6 +864,8 @@
     if (p.language === 'cs' || p.language === 'en') fresh.language = p.language;
     fresh.strava = { connected: !!(p.strava && p.strava.connected), lastSync: null, lastError: null };
     fresh.intervals = { enabled: !!(p.intervals && p.intervals.enabled), lastPush: null, lastError: null };
+    // Apple Health stays switched on, but the next import reads the last 90 days again
+    fresh.health = { enabled: !!(p.health && p.health.enabled), lastImport: null, lastError: null };
     if (p.ui && typeof p.ui === 'object') fresh.ui = JSON.parse(JSON.stringify(p.ui));
     return fresh;
   }
@@ -808,6 +924,73 @@
   // "... (401)" into the generic network text; a manual sync returns the raw error, so the
   // "needs a new sign-in" state is remembered here until a sync succeeds or Strava reconnects.
   let stravaAuthFailed = false;
+
+  // ================================================================ Apple Zdraví import (iPhone)
+  // Lives outside the dialog: after the first import the app imports new runs on its own when it starts
+  // and whenever it comes back to the foreground (at most every HEALTH_AUTO_MS).
+  const HEALTH_AUTO_MS = 15 * 60 * 1000;
+  const healthRun = { busy: false, last: null, startedAt: 0 };
+
+  function healthSupported() {
+    const p = P();
+    return !!(p && p.kind === 'ios' && p.health && p.health.supported);
+  }
+  function renderIfOpen() { if (view.handle && view.handle.isOpen()) render(); }
+
+  /**
+   * importHealth({ manual }) -> Promise<{ ok, added?, updated?, invalid?, rows?, error? }>. Asks for read
+   * access (the system sheet appears only the first time), reads running workouts from
+   * VeyvoStore.healthImportSince and stores them with VeyvoStore.importHealthRuns. A manual import
+   * always says what happened; an automatic one only speaks up when runs were added. Never throws.
+   */
+  async function importHealth(options) {
+    const o = options || {};
+    if (!healthSupported()) return { ok: false, unsupported: true };
+    if (healthRun.busy) return { ok: false, busy: true };
+    const H = P().health;
+    healthRun.busy = true;
+    healthRun.startedAt = Date.now();
+    renderIfOpen();
+    try {
+      if (!(await H.isAvailable())) throw Object.assign(new Error('Apple Health is not available'), { code: 'health_unavailable' });
+      await H.requestAuthorization();
+      const rows = await H.importRuns({ since: Store.healthImportSince(app.state(), Date.now()) });
+      const at = new Date().toISOString();
+      const probe = Store.importHealthRuns(app.state(), rows, { at });
+      let result = probe;
+      const r = app.update(s => { result = Store.importHealthRuns(s, rows, { at }); return result; },
+        { reason: 'health-import', render: probe.added > 0 || probe.updated > 0 ? true : 'shell' });
+      if (!r.ok) throw Object.assign(new Error((r.errors || []).join(', ') || 'not saved'), { code: (r.errors && r.errors[0]) || 'failed' });
+      healthRun.last = { ok: true, added: result.added, updated: result.updated, invalid: result.invalid, rows: rows.length };
+      const toast = healthToast(result, rows.length, !!o.manual);
+      if (toast) app.toast(t(toast.key, { n: toast.n }), { kind: toast.key === 'health.none' ? 'info' : 'success' });
+      return Object.assign({ ok: true }, healthRun.last);
+    } catch (err) {
+      const message = err && err.code && I18n.has('store.error.' + err.code) ? app.t('store.error.' + err.code) : app.errorText(err);
+      healthRun.last = { ok: false, error: message };
+      app.update(s => { s.health = Object.assign({}, s.health, { lastError: String(message).slice(0, 500) }); }, { reason: 'health-error', render: 'shell' });
+      if (o.manual) app.toast(message, { kind: 'error' });
+      return { ok: false, error: message };
+    } finally {
+      healthRun.busy = false;
+      renderIfOpen();
+    }
+  }
+
+  function autoImportHealth() {
+    if (!healthSupported() || healthRun.busy || !app.isReady()) return;
+    const st = app.state();
+    if (!st || !st.health || !st.health.enabled) return;
+    if (healthRun.startedAt && Date.now() - healthRun.startedAt < HEALTH_AUTO_MS) return;
+    importHealth({ manual: false });
+  }
+
+  app.on('ready', () => {
+    if (!healthSupported()) return;
+    setTimeout(autoImportHealth, 1500);
+    const doc = root.document;
+    if (doc && typeof doc.addEventListener === 'function') doc.addEventListener('visibilitychange', () => { if (!doc.hidden) autoImportHealth(); });
+  });
 
   // ================================================================ small builders
   const icon = (name, size) => icons.get(name, size ? { size } : undefined);
@@ -974,6 +1157,7 @@
       const k = stravaKey(app.strava.status());
       if (k === 'error' || k === 'reauth') return 'attention';
     }
+    if (section === 'connections' && healthSupported() && healthKey(app.state().health, healthRun.busy) === 'error') return 'attention';
     if (section === 'updates') {
       const u = updateView(app.updates.status(), app.updates.supported);
       if (u.key === 'ready' || u.key === 'available') return 'update';
@@ -985,8 +1169,14 @@
     return d ? h('span.set-dot', { class: 'is-' + d }, h('span.sr-only', ', ' + t('dot.' + d))) : null;
   }
 
+  /** The sections this build shows (no Aktualizace in a store build). */
+  function shownSections() { return sectionsFor(app.build); }
+
   function sectionHead(s, id) {
-    return h('header.set-head', h('h3.set-title', { id: id || null }, t('section.' + s)), h('p.set-lead', t('lead.' + s)));
+    // a store build has no Strava, so Propojení is about intervals.icu only (plus Apple Zdraví on iPhone)
+    const lead = s !== 'connections' ? 'lead.' + s
+      : P().kind === 'ios' ? 'lead.connectionsIos' : app.build.store ? 'lead.connectionsStore' : 'lead.connections';
+    return h('header.set-head', h('h3.set-title', { id: id || null }, t('section.' + s)), h('p.set-lead', t(lead)));
   }
   function sectionBody(s) {
     if (s === 'profile') return profileSection();
@@ -999,7 +1189,7 @@
 
   function buildDesktop() {
     const sec = view.section;
-    const tabs = SECTIONS.map(s => h('button.set-tab', {
+    const tabs = shownSections().map(s => h('button.set-tab', {
       type: 'button', role: 'tab', id: 'set-tab-' + s, 'aria-selected': s === sec ? 'true' : 'false', 'aria-controls': 'set-panel',
       tabindex: s === sec ? '0' : '-1', title: t('section.' + s), dataset: { key: 'set-tab:' + s, section: s }, onClick: () => select(s)
     }, icon(SECTION_ICON[s]), h('span.set-tab-label', t('section.' + s)), dotNode(s)));
@@ -1012,11 +1202,11 @@
   }
 
   function buildPhone() {
-    const jump = h('nav.set-jump', { 'aria-label': t('navLabel') }, SECTIONS.map(s => h('button.set-jump-item', {
+    const jump = h('nav.set-jump', { 'aria-label': t('navLabel') }, shownSections().map(s => h('button.set-jump-item', {
       type: 'button', dataset: { key: 'set-jump:' + s, section: s }, 'aria-current': s === view.jumpActive ? 'true' : null,
       onClick: () => scrollToSection(s, true)
     }, icon(SECTION_ICON[s], 15), h('span', t('section.' + s)), dotNode(s))));
-    const secs = SECTIONS.map(s => h('section.set-sec', { id: 'set-sec-' + s, dataset: { section: s }, 'aria-labelledby': 'set-sec-t-' + s },
+    const secs = shownSections().map(s => h('section.set-sec', { id: 'set-sec-' + s, dataset: { section: s }, 'aria-labelledby': 'set-sec-t-' + s },
       sectionHead(s, 'set-sec-t-' + s), sectionBody(s)));
     return [identity(), jump, h('div.set-secs', secs)];
   }
@@ -1039,20 +1229,21 @@
   }
 
   function tabKeys(e) {
-    const i = SECTIONS.indexOf(view.section);
+    const list = shownSections();
+    const i = list.indexOf(view.section);
     let n = null;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') n = (i + 1) % SECTIONS.length;
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') n = (i - 1 + SECTIONS.length) % SECTIONS.length;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') n = (i + 1) % list.length;
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') n = (i - 1 + list.length) % list.length;
     else if (e.key === 'Home') n = 0;
-    else if (e.key === 'End') n = SECTIONS.length - 1;
+    else if (e.key === 'End') n = list.length - 1;
     if (n === null) return;
     e.preventDefault();
-    select(SECTIONS[n]);
-    focusKey('set-tab:' + SECTIONS[n]);
+    select(list[n]);
+    focusKey('set-tab:' + list[n]);
   }
 
   function select(s) {
-    const next = sectionOf(s);
+    const next = sectionOf(s, shownSections());
     if (view.phone) { scrollToSection(next, true); return; }
     if (next === view.section) return;
     view.section = next;
@@ -1070,7 +1261,7 @@
     paintJump();
     const jump = hd.el.querySelector('.set-jump');
     const offset = (jump ? jump.offsetHeight : 0) + 4;
-    const top = s === SECTIONS[0] ? 0 : sec.offsetTop - offset;
+    const top = s === shownSections()[0] ? 0 : sec.offsetTop - offset;
     const behavior = smooth && !motion.prefersReduced() ? 'smooth' : 'auto';
     hd.body.scrollTo({ top: Math.max(0, top), behavior });
   }
@@ -1096,9 +1287,10 @@
       if (!hd) return;
       const jump = hd.el.querySelector('.set-jump');
       const limit = hd.body.scrollTop + (jump ? jump.offsetHeight : 0) + 24;
-      let active = SECTIONS[0];
+      const list = shownSections();
+      let active = list[0];
       hd.el.querySelectorAll('.set-sec').forEach(sec => { if (sec.offsetTop <= limit) active = sec.dataset.section; });
-      if (hd.body.scrollTop + hd.body.clientHeight >= hd.body.scrollHeight - 4) active = SECTIONS[SECTIONS.length - 1];
+      if (hd.body.scrollTop + hd.body.clientHeight >= hd.body.scrollHeight - 4) active = list[list.length - 1];
       if (active !== view.jumpActive) { view.jumpActive = active; paintJump(); }
     });
   }
@@ -1350,7 +1542,8 @@
 
   function connectionsSection() {
     ensureIntervalsKey();
-    return h('div.set-groups', { class: view.enter ? 'stagger' : null }, stravaGroup(), intervalsGroup());
+    const groups = { strava: stravaGroup, health: healthGroup, intervals: intervalsGroup };
+    return h('div.set-groups', { class: view.enter ? 'stagger' : null }, connectionsFor(app.build, P().kind).map(name => groups[name]()));
   }
 
   function stravaGroup() {
@@ -1483,6 +1676,45 @@
     P().openExternal(url).catch(err => app.toast(app.errorText(err), { kind: 'error' }));
   }
 
+  // ---------------------------------------------------------------- Apple Zdraví (iPhone)
+  const HEALTH_CHIP = { off: [null, null], on: ['good', 'check'], importing: ['accent', 'refresh'], error: ['danger', 'warning'] };
+
+  function healthGroup() {
+    const st = app.state().health || {};
+    const key = healthKey(st, healthRun.busy);
+    const c = HEALTH_CHIP[key];
+    const statusChip = chip(c[0], t('health.status.' + key), c[1], key === 'importing' ? 'is-spin' : null);
+    const body = [h('p.set-text', t('health.lead'))];
+    body.push(h('dl.set-facts', h('div', h('dt', t('health.lastImport')), h('dd', st.lastImport ? whenText(st.lastImport) : t('health.never')))));
+    if (key === 'error') body.push(callout('danger', t('health.errorTitle'), st.lastError));
+    const last = healthRun.last;
+    if (last && last.ok && last.invalid > 0) body.push(note('info', t('health.skipped', { n: last.invalid })));
+    const actions = [button(st.enabled ? 'btn-secondary' : 'btn-primary', t(st.enabled ? 'health.importAgain' : 'health.import'), {
+      key: 'set-health-import', icon: st.enabled ? 'refresh' : 'heart', busy: healthRun.busy, onClick: () => importHealth({ manual: true })
+    })];
+    if (st.enabled && !healthRun.busy) actions.push(button('btn-ghost', t('health.stop'), { key: 'set-health-stop', onClick: stopHealth }));
+    body.push(h('div.btn-row.set-actions', actions));
+    if (st.enabled) body.push(note('refresh', t('health.auto'), 'set-note-faint'));
+    const ignored = (app.state().ignoredHealthIds || []).length;
+    if (ignored) {
+      body.push(h('div.set-inline', icon('trash', 15), h('span', t('health.ignored', { n: ignored })),
+        button('btn-sm btn-outline', t('health.restoreIgnored'), { key: 'set-health-restore', disabled: healthRun.busy, onClick: restoreHealthIgnored })));
+    }
+    body.push(h('div.set-foot-notes', note('lock', t('health.reads'), 'set-note-faint'), note('info', t('health.rules'), 'set-note-faint'),
+      note('info', t('health.permission'), 'set-note-faint')));
+    return group({ id: 'applehealth', icon: 'heart', title: t('health.title'), sub: t('health.sub'), end: statusChip, cls: 'set-health is-' + key, body });
+  }
+
+  function stopHealth() {
+    app.update(s => { s.health = Object.assign({}, s.health, { enabled: false }); }, { reason: 'health-stop', render: 'shell', toast: t('health.stopped') });
+  }
+
+  function restoreHealthIgnored() {
+    const n = (app.state().ignoredHealthIds || []).length;
+    const r = app.update(s => Store.restoreIgnoredHealth(s), { reason: 'health-restore', render: 'shell', toast: app.t('store.notice.healthRestored', { n }), undo: true });
+    if (r.ok && app.state().health && app.state().health.enabled) importHealth({ manual: false });
+  }
+
   // ---------------------------------------------------------------- intervals.icu
   function ensureIntervalsKey() {
     const iv = view.intervals;
@@ -1508,7 +1740,8 @@
     const S = P().secrets;
     if (!S || !S.supported) return t('intervals.storeNone');
     if (S.encrypted) return t('intervals.storeEncrypted');
-    return P().kind === 'android' ? t('intervals.storePlain') : t('intervals.storeMemory');
+    const kind = P().kind;
+    return kind === 'android' ? t('intervals.storePlain') : kind === 'ios' ? t('intervals.storePlainIos') : t('intervals.storeMemory');
   }
 
   function intervalsGroup() {
@@ -2044,14 +2277,20 @@
       lic('Barlow Condensed', t('about.barlow'), 'SIL OFL 1.1'),
       lic('@bibixx/workoutkit 0.2.0', t('about.workoutkit'), 'MIT'),
       kind === 'desktop' ? lic('Electron', t('about.electron'), 'MIT') : null,
-      kind === 'android' ? lic('Capacitor', t('about.capacitor'), 'MIT') : null
+      kind === 'android' ? lic('Capacitor', t('about.capacitor'), 'MIT') : null,
+      kind === 'ios' ? lic('Capacitor', t('about.capacitorIos'), 'MIT') : null
     ];
+    const policy = h('button.btn-link.set-ext', { type: 'button', dataset: { key: 'set-privacy-policy' }, onClick: () => openExternal(PRIVACY_URL) },
+      h('span', t('about.privacyPolicy')), icon('external', 14));
     const groups = [
       brand,
-      group({ id: 'privacy', icon: 'lock', title: t('about.privacyTitle'), sub: t('about.privacySub'), body: [h('p.set-text', t('about.privacy')), h('p.set-text', t('about.privacyOut'))] }),
+      group({ id: 'health', icon: 'heart', title: t('about.healthTitle'), sub: t('about.healthSub'), body: [h('p.set-text', t('about.medical')), h('p.set-text', t('about.medicalConsult'))] }),
+      group({ id: 'privacy', icon: 'lock', title: t('about.privacyTitle'), sub: t('about.privacySub'), body: [
+        h('p.set-text', t('about.privacy')), h('p.set-text', t(app.build.store ? 'about.privacyOutStore' : 'about.privacyOut')),
+        kind === 'ios' ? h('p.set-text', t('about.privacyHealth')) : null, policy] }),
       group({ id: 'licences', icon: 'file', title: t('about.licences'), sub: t('about.licencesSub'), body: [h('ul.set-lic-list', licences)] })
     ];
-    if (!view.phone && kind !== 'android') {
+    if (!view.phone && kind !== 'android' && kind !== 'ios') {
       const sc = (keys, text) => h('li.set-sc', h('span.set-sc-keys', keys.map(k => h('kbd.kbd', k))), h('span', text));
       groups.push(group({ id: 'shortcuts', icon: 'menu', title: t('about.shortcuts'), body: [h('ul.set-sc-list',
         sc(['N'], t('about.shortcutLog')),
@@ -2092,7 +2331,7 @@
       return view.handle;
     }
     view = freshView();
-    view.section = sectionOf(p.section);
+    view.section = sectionOf(p.section, shownSections());
     view.phone = app.isPhone();
     view.jumpActive = view.section;
     view.draft = draftFromProfile(app.state().profile);
@@ -2145,8 +2384,8 @@
   app.dialogs.register('settings', { open });
 
   UI.settings = {
-    SECTIONS, GOAL_PRESETS, INTERVALS_SECRET, STRAVA_CLIENT_ID, MESSAGES,
-    sectionOf, parseTarget, parseKm, presetOf, draftFromProfile, draftKey, profilePatch, goalPace, goalPreview,
+    SECTIONS, STORE_SECTIONS, GOAL_PRESETS, INTERVALS_SECRET, STRAVA_CLIENT_ID, PRIVACY_URL, MESSAGES, HEALTH_AUTO_MS,
+    sectionsFor, connectionsFor, healthKey, healthToast, importHealth, sectionOf, parseTarget, parseKm, presetOf, draftFromProfile, draftKey, profilePatch, goalPace, goalPreview,
     isReauthError, backupFileName, confirmWord, confirmMatches, maskKey, athleteName, wipeState, importSummary, updateView
   };
 })(globalThis);

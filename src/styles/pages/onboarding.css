@@ -56,6 +56,17 @@ dialog.onb-dlg { --dlg-w: 620px; }
 .onb-pace-v { font: 600 34px/1 var(--font-num); color: var(--text); white-space: nowrap; }
 .onb-pace-v .unit { --unit-size: 14px; }
 .onb-pace-num.is-empty { color: var(--text-faint); }
+/* health notice + privacy policy link under the goal (required by both app stores) */
+.onb-health {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px; line-height: 1.45; color: var(--text-faint);
+}
+.onb-health > .ic { margin-top: 2px; }
+.onb-health-text { max-width: 64ch; }
+.onb-policy { grid-column: 2; justify-self: start; color: var(--accent-text); }
+.onb-policy:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 
 /* step 2: days */
 .onb-step-days .day-toggles { gap: 8px; }

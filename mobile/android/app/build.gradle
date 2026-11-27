@@ -3,10 +3,29 @@ apply plugin: 'com.android.application'
 import groovy.json.JsonSlurper
 
 // Version comes from the root package.json so Windows and Android always ship the same version.
+// versionCode = major * 1000000 + minor * 10000 + patch * 100 + build, where build is the optional
+// environment variable VEYVO_BUILD_NUMBER (0-99, default 0). Google Play burns a versionCode on every
+// upload, test tracks included, so a second test upload of the same version uses VEYVO_BUILD_NUMBER=1,
+// 2, ... (0.4.1 -> 40100, 40101, ...). The old scheme gave 0.4.0 the code 400; every new code is higher,
+// so APKs installed from GitHub still update.
 def veyvoPackage = new JsonSlurper().parse(file('../../../package.json'))
 def veyvoVersionName = veyvoPackage.version.toString()
-def veyvoVersionParts = veyvoVersionName.tokenize('.-')
-def veyvoVersionCode = (veyvoVersionParts[0] as int) * 10000 + (veyvoVersionParts[1] as int) * 100 + (veyvoVersionParts[2] as int)
+def veyvoVersionMatch = (veyvoVersionName =~ /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/)
+if (!veyvoVersionMatch.matches()) {
+    throw new GradleException("package.json version '${veyvoVersionName}' is not major.minor.patch")
+}
+def veyvoMajor = veyvoVersionMatch.group(1) as int
+def veyvoMinor = veyvoVersionMatch.group(2) as int
+def veyvoPatch = veyvoVersionMatch.group(3) as int
+def veyvoBuildNumberText = (System.getenv('VEYVO_BUILD_NUMBER') ?: '0').trim()
+if (!(veyvoBuildNumberText ==~ /\d{1,2}/)) {
+    throw new GradleException("VEYVO_BUILD_NUMBER must be a whole number from 0 to 99, got '${veyvoBuildNumberText}'")
+}
+def veyvoBuildNumber = veyvoBuildNumberText as int
+if (veyvoMinor > 99 || veyvoPatch > 99 || veyvoMajor > 2099) {
+    throw new GradleException("version ${veyvoVersionName} does not fit the versionCode scheme (minor and patch 0-99)")
+}
+def veyvoVersionCode = veyvoMajor * 1000000 + veyvoMinor * 10000 + veyvoPatch * 100 + veyvoBuildNumber
 
 // Release signing is read from environment variables (CI secrets or a local shell). Keys never live in the repo.
 def veyvoKeystore = System.getenv('VEYVO_KEYSTORE_PATH')

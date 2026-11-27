@@ -17,6 +17,7 @@
  *   app.setTheme('dark' | 'light'), app.setLanguage('cs' | 'en'), app.t(key, params)
  *   app.strava.{ supported, status(), sync({ manual }), connect(secret), disconnect(), refresh() }
  *   app.updates.{ supported, status(), check(), install() }
+ *   app.build                                     { channel: 'github' | 'play' | 'appstore', store } (VeyvoPlatform.build)
  *   app.on('state' | 'navigate' | 'today' | 'theme' | 'language' | 'strava' | 'updates' | 'backup' | 'dialog' | 'ready', cb) -> off
  */
 (function (root) {
@@ -920,6 +921,15 @@
     stravaTimer = setInterval(() => { if (state.strava.connected) stravaSync(); }, STRAVA_EVERY_MS);
   }
 
+  // ================================================================ build channel
+  // 'github' (Windows app, GitHub APK) or a store build ('play'): store builds have no updater, no
+  // Strava and no wording about the Windows app or APK downloads (src/build-info.js).
+  const DEFAULT_BUILD = Object.freeze({ channel: 'github', store: false });
+  function buildInfo() {
+    const b = Platform && Platform.build;
+    return b && typeof b.channel === 'string' && typeof b.store === 'boolean' ? b : DEFAULT_BUILD;
+  }
+
   // ================================================================ updates
   let updateStatus = null;
   const UPDATE_CHECK_KEY = 'veyvo-update-check';    // Android: the day of the last successful daily check
@@ -1291,12 +1301,20 @@
     }, 600);
   }
 
+  /** The device UI language mapped to VEYVO's locales (cs for Czech/Slovak, otherwise en). */
+  function deviceLanguage() {
+    const nav = root.navigator || {};
+    const first = (Array.isArray(nav.languages) && nav.languages[0]) || nav.language || 'cs';
+    return Format && typeof Format.normalizeLocale === 'function' ? Format.normalizeLocale(first, 'cs') : (/^(cs|sk)\b/i.test(first) ? 'cs' : 'en');
+  }
+
   // ================================================================ start
   function start() {
     if (started) return api;
     started = true;
     const html = doc.documentElement;
     html.dataset.platform = Platform.kind;
+    html.dataset.channel = buildInfo().channel;
     try {
       // dev hooks (screenshots/tests): ?today=YYYY-MM-DD pins the date, ?motion=off freezes motion
       const query = new root.URLSearchParams(root.location.search);
@@ -1305,8 +1323,17 @@
       if (query.get('motion') === 'off') html.dataset.motion = 'off';
     } catch (e) { /* no query string */ }
     todayKey = computeToday();
+    let freshInstall = false;
+    try { freshInstall = storage.getItem('veyvo-state') === null; } catch (e) { /* storage unavailable */ }
     loadReport = Store.load(storage, {});
     state = deepFreeze(loadReport.state);
+    // A brand-new install on a phone starts in the phone's language (cs/sk -> Czech, anything else -> English).
+    // Existing data and the desktop app keep their saved language (Czech by default).
+    const preferred = freshInstall && (Platform.kind === 'android' || Platform.kind === 'ios') ? deviceLanguage() : null;
+    if (preferred && preferred !== state.language) {
+      state = deepFreeze(Object.assign({}, state, { language: preferred }));
+      loadReport = Object.assign({}, loadReport, { needsSave: true });
+    }
     if (loadReport.needsSave) {
       const saved = Store.save(storage, state);
       if (!saved.ok) loadReport = Object.assign({}, loadReport, { saveError: saved.error });
@@ -1355,6 +1382,8 @@
     theme: () => (state ? state.theme : 'dark'),
     language: () => I18n.getLocale(),
     isPhone: () => mqPhone.matches,
+    /** { channel: 'github' | 'play' | 'appstore', store }: a store build hides the updater, Strava and Windows/APK wording. */
+    get build() { return buildInfo(); },
     strava: {
       get supported() { return !!(Platform.strava && Platform.strava.supported); },
       status: stravaStatus, sync: stravaSync, connect: stravaConnect, disconnect: stravaDisconnect, refresh: stravaRefresh,
